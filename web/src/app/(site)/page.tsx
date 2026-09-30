@@ -30,8 +30,8 @@ const steps = [
   },
   {
     icon: Sparkles,
-    title: "Drive off sparkling",
-    body: "See before and after photos, rate the wash, and rebook in one tap.",
+    title: "Your car, spotless",
+    body: "Your car never leaves your parking. See before and after photos, rate the wash, and rebook in one tap.",
   },
 ];
 
@@ -53,7 +53,7 @@ const testimonials = [
   {
     name: "Amit Khanna",
     city: "Noida",
-    quote: "No more Sunday queues at the service centre. The Premium wash is worth every rupee and the app makes rebooking effortless.",
+    quote: "The washer comes to my society parking while I'm at work. The Premium wash is worth every rupee and the app makes rebooking effortless.",
   },
   {
     name: "Sneha Iyer",
@@ -63,6 +63,14 @@ const testimonials = [
 ];
 
 const faqs = [
+  {
+    q: "Do you take my car away?",
+    a: "No. This is a doorstep service: the washer comes to where your car is parked and washes it right there. Your car never leaves your home or office.",
+  },
+  {
+    q: "Do I need to be present during the wash?",
+    a: "Not for an Express Wash, as long as the washer can reach the car. For interior cleaning, someone needs to unlock the car or leave the key with security. You'll get before and after photos either way.",
+  },
   {
     q: "Do I need to provide water or electricity?",
     a: "No. Our washers carry their own water tank, pressure washer and all cleaning supplies. We just need access to your car.",

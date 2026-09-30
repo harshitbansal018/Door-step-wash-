@@ -74,6 +74,8 @@ export function BookingWizard({
   const [house, setHouse] = useState("");
   const [landmark, setLandmark] = useState("");
   const [parking, setParking] = useState("");
+  const [parkingType, setParkingType] = useState("Basement");
+  const [access, setAccess] = useState("I'll be there");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [couponInput, setCouponInput] = useState("");
@@ -133,6 +135,8 @@ export function BookingWizard({
             ["Package", `${service.name} · ${VEHICLE_TYPES.find((v) => v.id === vehicle)?.label}`],
             ["When", `${days.find((d) => d.iso === date)?.weekday}, ${TIME_SLOTS.find((s) => s.id === slot)?.label}`],
             ["Where", `${house}, ${served?.area.name}, ${served?.city.name}`],
+            ["Car parked in", `${parkingType}${parking ? ` · ${parking}` : ""}`],
+            ["Access", access],
             ["Paid", formatMoney(total)],
           ].map(([k, v]) => (
             <div key={k} className="flex justify-between gap-4 py-3">
@@ -316,7 +320,13 @@ export function BookingWizard({
 
           {step === 2 && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-slate-900">Where should we come?</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Where is your car parked?</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Our washer comes to this address and washes the car right where it&apos;s parked. We bring water, power
+                  and all supplies.
+                </p>
+              </div>
               <div>
                 <Label htmlFor="pincode">Pincode</Label>
                 <Input
@@ -361,6 +371,47 @@ export function BookingWizard({
                   <Label htmlFor="parking">Parking spot (optional)</Label>
                   <Input id="parking" value={parking} onChange={(e) => setParking(e.target.value)} placeholder="Basement 2, slot 118" />
                 </div>
+              </div>
+              <div>
+                <Label>Type of parking</Label>
+                <div className="flex flex-wrap gap-2">
+                  {["Basement", "Open parking", "Covered garage", "Street"].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setParkingType(t)}
+                      className={cn(
+                        "rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition",
+                        parkingType === t ? "bg-brand-50 text-brand-700 ring-2 ring-brand-600" : "text-slate-600 ring-slate-300 hover:bg-slate-50",
+                      )}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Car access during the wash</Label>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {["I'll be there", "Key with security", "No access needed"].map((a) => (
+                    <button
+                      key={a}
+                      type="button"
+                      onClick={() => setAccess(a)}
+                      className={cn(
+                        "rounded-lg px-3 py-2.5 text-sm font-medium ring-1 transition",
+                        access === a ? "bg-brand-50 text-brand-700 ring-2 ring-brand-600" : "text-slate-600 ring-slate-300 hover:bg-slate-50",
+                      )}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+                {access === "No access needed" && serviceId !== "basic" && (
+                  <p className="mt-2 text-xs text-amber-700">
+                    {service.name} includes interior cleaning, so the washer will need the car unlocked.
+                  </p>
+                )}
               </div>
             </div>
           )}
