@@ -1,5 +1,5 @@
 import { BadgeCheck, ChevronRight, FileText, Landmark, LogOut, MapPin, Star } from "lucide-react";
-import Link from "next/link";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Avatar, Badge, Card } from "@/components/ui";
 import { cityName } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
@@ -54,12 +54,9 @@ export default function WorkerProfilePage() {
         ))}
       </Card>
 
-      <Link
-        href="/login"
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 ring-1 ring-slate-200 hover:bg-red-50"
-      >
+      <LogoutButton className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 text-sm font-semibold text-red-600 ring-1 ring-slate-200 hover:bg-red-50">
         <LogOut className="size-4" /> Log out
-      </Link>
+      </LogoutButton>
     </div>
   );
 }

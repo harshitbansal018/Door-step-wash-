@@ -17,6 +17,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Avatar, Logo } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,9 @@ const NAV = [
   { href: "/admin/payments", label: "Payments", icon: Wallet },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+type ShellUser = { name: string; email: string };
+
+function SidebarContent({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
     <div className="flex h-full flex-col bg-slate-950 px-4 py-5">
@@ -58,28 +61,28 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       <div className="rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
         <div className="flex items-center gap-3">
-          <Avatar name="Harshit Admin" className="bg-brand-600 text-white" />
+          <Avatar name={user.name} className="bg-brand-600 text-white" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">Harshit</p>
-            <p className="truncate text-xs text-slate-400">Super Admin</p>
+            <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+            <p className="truncate text-xs text-slate-400">{user.email}</p>
           </div>
-          <Link href="/login" className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Log out">
-            <LogOut className="size-4" />
-          </Link>
+          <LogoutButton className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white">
+            <LogOut className="size-4" aria-label="Log out" />
+          </LogoutButton>
         </div>
       </div>
     </div>
   );
 }
 
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ user, children }: { user: ShellUser; children: ReactNode }) {
   const [open, setOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
-        <SidebarContent />
+        <SidebarContent user={user} />
       </aside>
 
       {/* Mobile sidebar */}
@@ -87,7 +90,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-900/60" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-72">
-            <SidebarContent onNavigate={() => setOpen(false)} />
+            <SidebarContent user={user} onNavigate={() => setOpen(false)} />
             <button
               onClick={() => setOpen(false)}
               className="absolute top-5 -right-12 rounded-lg p-2 text-white"
