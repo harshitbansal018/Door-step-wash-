@@ -7,17 +7,18 @@ const columns = [
   {
     title: "Services",
     links: [
-      { label: "Express Wash", href: "/#pricing" },
-      { label: "Premium Wash", href: "/#pricing" },
-      { label: "Deluxe Detailing", href: "/#pricing" },
+      { label: "Express Wash", href: "/pricing" },
+      { label: "Premium Wash", href: "/pricing" },
+      { label: "Deluxe Detailing", href: "/pricing" },
       { label: "Book now", href: "/book" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "How it works", href: "/#how-it-works" },
-      { label: "Cities", href: "/#cities" },
+      { label: "How it works", href: "/how-it-works" },
+      { label: "Cities", href: "/cities" },
+      { label: "FAQ", href: "/faq" },
       { label: "Become a partner", href: "/worker" },
       { label: "Admin", href: "/admin" },
     ],
@@ -25,9 +26,9 @@ const columns = [
   {
     title: "Legal",
     links: [
-      { label: "Terms of service", href: "#" },
-      { label: "Privacy policy", href: "#" },
-      { label: "Refund policy", href: "#" },
+      { label: "Terms of service", href: "/terms" },
+      { label: "Privacy policy", href: "/privacy" },
+      { label: "Refund policy", href: "/refund-policy" },
     ],
   },
 ];
@@ -43,12 +44,12 @@ export function Footer() {
               Professional car wash and detailing at your doorstep. Trained, verified washers. Pay securely online.
             </p>
             <div className="mt-6 space-y-2 text-sm">
-              <p className="flex items-center gap-2">
+              {BRAND.phone && <p className="flex items-center gap-2">
                 <Phone className="size-4" /> {BRAND.phone}
-              </p>
-              <p className="flex items-center gap-2">
+              </p>}
+              {BRAND.email && <p className="flex items-center gap-2">
                 <Mail className="size-4" /> {BRAND.email}
-              </p>
+              </p>}
             </div>
           </div>
           {columns.map((col) => (

@@ -13,6 +13,7 @@ import { dashboardService } from "../services/dashboard.service";
 import type { UserRole } from "../types/db";
 import {
   adminCancelSchema,
+  adminSlotsQuery,
   assignSchema,
   createAreaSchema,
   createCitySchema,
@@ -72,6 +73,10 @@ export const adminController = {
   generateSlots: withAuth(ADMIN, async (req) =>
     ok(await adminCatalogService.generateSlots((await readJson(req, generateSlotsSchema)).days)),
   ),
+  listSlots: withAuth(ADMIN, async (req) => {
+    const q = readQuery(req, adminSlotsQuery);
+    return ok(await adminCatalogService.slots(q.areaId, q.date));
+  }),
   updateSlot: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     ok(await adminCatalogService.updateSlot(uuid.parse(id), await readJson(req, updateSlotSchema))),
   ),

@@ -1,5 +1,6 @@
 import "server-only";
 import { conflict, forbidden, notFound, unprocessable } from "../lib/errors";
+import { razorpay } from "../lib/razorpay";
 import { createAdminClient, type Db } from "../lib/supabase";
 import { formatSlot } from "../lib/time";
 import type { AuthContext } from "../middlewares/auth.middleware";
@@ -32,6 +33,8 @@ export function presentBooking(b: BookingDetail, opts: { showWorkerPhone?: boole
     code: b.code,
     status: b.status,
     service: { id: b.service.id, name: b.service.name },
+    cityId: b.city_id,
+    areaId: b.area_id,
     city: b.city.name,
     area: b.area.name,
     slot: { date: b.slot_date, start: b.slot_start.slice(0, 5), end: b.slot_end.slice(0, 5) },
@@ -66,7 +69,7 @@ async function loadOwned(db: Db, customerId: string, bookingId: string) {
 }
 
 export const bookingService = {
-  async quote(auth: AuthContext, input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code: string }) {
+  async quote(auth: AuthContext, input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code?: string }) {
     const area = await coverageService.assertServed(input.pincode);
     return pricingService.quote(createAdminClient(), {
       cityId: area.city_id,
@@ -125,6 +128,34 @@ export const bookingService = {
       PAYMENT_HOLD_MINUTES,
     );
 
+    if (process.env.NODE_ENV !== "production" && !razorpay.isConfigured()) {
+      const confirmed = await bookingModel.transition(db, booking.id, ["pending_payment"], {
+        status: "confirmed",
+        expires_at: null,
+        status_changed_by: auth.userId,
+      });
+      if (!confirmed) throw conflict("That booking could not be confirmed. Please try again.", "BOOKING_CONFIRM_FAILED");
+
+      const detail = await bookingModel.findDetail(db, booking.id);
+      if (detail) {
+        await notificationService.bookingConfirmed({
+          to: auth.email,
+          name: detail.contact_name,
+          code: detail.code,
+          service: detail.service.name,
+          when: formatSlot(detail.slot_date, detail.slot_start, detail.slot_end),
+          address: `${detail.address_line}, ${detail.area.name}, ${detail.city.name}`,
+        });
+      }
+
+      return {
+        booking: { id: confirmed.id, code: confirmed.code, total: confirmed.total, expiresAt: confirmed.expires_at },
+        quote,
+        checkout: null,
+        paymentSkipped: true,
+      };
+    }
+
     try {
       const checkout = await paymentService.startCheckout(booking, {
         name: input.contactName,
@@ -135,6 +166,7 @@ export const bookingService = {
         booking: { id: booking.id, code: booking.code, total: booking.total, expiresAt: booking.expires_at },
         quote,
         checkout,
+        paymentSkipped: false,
       };
     } catch (err) {
       // Could not open a payment: give the slot back straight away.

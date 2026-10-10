@@ -21,6 +21,32 @@ export function isSlotBookable(slot: SlotRow, city: Pick<CityRow, "timezone">, n
 }
 
 export const catalogService = {
+  /** Lowest active base prices advertised before a customer enters a pincode. */
+  async startingPrices() {
+    const db = await createUserClient();
+    const [cities, services, prices] = await Promise.all([
+      cityModel.listAll(db),
+      serviceModel.listAll(db),
+      serviceModel.activePrices(db),
+    ]);
+    const activeCities = new Set(cities.filter((city) => city.is_active).map((city) => city.id));
+    const activeServices = new Set(services.filter((service) => service.is_active).map((service) => service.id));
+    const eligible = prices.filter(
+      (price) => activeCities.has(price.city_id) && activeServices.has(price.service_id),
+    );
+    const minimum = (vehicleTypes: VehicleType[]) => {
+      const amounts = eligible
+        .filter((price) => vehicleTypes.includes(price.vehicle_type))
+        .map((price) => price.price);
+      return amounts.length ? Math.min(...amounts) : null;
+    };
+
+    return {
+      bike: minimum(["bike"]),
+      car: minimum(["hatchback", "sedan", "suv"]),
+    };
+  },
+
   /** Packages and prices for the city an area belongs to. */
   async forArea(areaId: string) {
     const db = await createUserClient();

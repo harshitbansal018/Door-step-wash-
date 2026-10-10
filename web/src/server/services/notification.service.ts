@@ -93,19 +93,35 @@ export const notificationService = {
       layout(
         "You have a new job",
         p(`<b>${escape(b.service)}</b> in ${escape(b.area)} on <b>${escape(b.when)}</b>.`) +
-          button(`${env().NEXT_PUBLIC_SITE_URL}/worker`, "Open partner app"),
+          button(`${env().NEXT_PUBLIC_SITE_URL}/worker`, "Open partner portal"),
       ),
     );
   },
 
-  workerWelcome(to: string, name: string) {
+  workerWelcome(to: string, name: string, initialPassword: string) {
     return sendEmail(
       to,
       `Welcome to ${BRAND.name} Partner`,
       layout(
         `Welcome, ${name}`,
-        p("Your partner account has been created. To set your password, open the link below, choose “Forgot password” and enter this email address.") +
-          button(`${env().NEXT_PUBLIC_SITE_URL}/forgot-password`, "Set your password"),
+        p("Your partner account has been created. Use these details to log in:") +
+          p(`Email: <b>${escape(to)}</b><br>Initial password: <b>${escape(initialPassword)}</b>`) +
+          p("For security, change your password from Account settings after your first login.") +
+          button(`${env().NEXT_PUBLIC_SITE_URL}/login`, "Log in to partner account"),
+      ),
+    );
+  },
+
+  workerCredentialsUpdated(to: string, name: string, newPassword?: string) {
+    return sendEmail(
+      to,
+      `${BRAND.name} Partner login updated`,
+      layout(
+        `Login updated for ${name}`,
+        p("An administrator updated your partner login details.") +
+          p(`Login email: <b>${escape(to)}</b>${newPassword ? `<br>New password: <b>${escape(newPassword)}</b>` : ""}`) +
+          p("If you did not expect this change, contact support immediately.") +
+          button(`${env().NEXT_PUBLIC_SITE_URL}/login`, "Log in to partner account"),
       ),
     );
   },

@@ -1,6 +1,6 @@
-# ShineDoor — doorstep car wash platform
+# FoamValet — doorstep car wash platform
 
-Next.js 16 (frontend + API) on Vercel, Supabase (Postgres, Auth, Storage, cron), Razorpay (payments), Resend (emails).
+Next.js 16 (frontend + API) on Vercel, Supabase (Postgres, Auth, Storage, cron), Razorpay (payments), Brevo (emails).
 
 ```
 src/
@@ -41,7 +41,8 @@ supabase/
    2. `supabase/migrations/20261001000200_functions.sql`
    3. `supabase/migrations/20261001000300_security.sql`
    4. `supabase/migrations/20261001000400_storage_and_jobs.sql`
-   5. `supabase/seed.sql`
+   5. `supabase/migrations/20261001000500_service_role_grants.sql`
+   6. `supabase/seed.sql`
 
 ### 2. Email + password login with OTP
 
@@ -57,10 +58,16 @@ In **Authentication**:
 | Email Templates → Reset password | paste `supabase/templates/reset-password.html` |
 | URL Configuration → Site URL | your site URL (e.g. `https://yourapp.vercel.app`) |
 | Hooks → Customize Access Token | Postgres function `public.custom_access_token_hook` |
-| SMTP Settings | **Custom SMTP** — Resend: host `smtp.resend.com`, port `465`, user `resend`, password = Resend API key |
+| SMTP Settings | **Custom SMTP** — Brevo: host `smtp-relay.brevo.com`, port `587`, user = Brevo SMTP login, password = Brevo SMTP key |
 
 > Supabase's built-in email sender only allows a few emails per hour and is meant for testing.
 > Configure custom SMTP before real users sign up.
+
+Brevo is the only email delivery provider used by the application:
+
+- Supabase Auth sends signup and password-reset codes through the Brevo SMTP settings above. Use a **Brevo SMTP key**, not an API key.
+- Booking, assignment, completion, cancellation, new-job and worker-welcome emails use Brevo's transactional API. Add `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` and `BREVO_SENDER_NAME` to the deployment environment.
+- Verify the sender/domain in Brevo and publish its DKIM and SPF DNS records before testing. The SMTP sender and `BREVO_SENDER_EMAIL` should use that verified domain.
 
 Flows:
 - **Sign up:** name + email + password → 6-digit code by email → verified and signed in.
@@ -104,7 +111,7 @@ Update Supabase **Site URL** and the Razorpay webhook URL to the production doma
 |---|---|---|
 | POST | `/api/auth/signup` · `verify-email` · `resend-otp` · `login` · `logout` · `forgot-password` · `reset-password` | public |
 | POST | `/api/auth/change-password` · GET `/api/auth/me` | signed in |
-| GET | `/api/coverage?pincode=` · `/api/catalog?areaId=` · `/api/slots?areaId=&date=` | public |
+| GET | `/api/coverage?pincode=` · `/api/catalog?areaId=` · `/api/slots?areaId=&date=` · `/api/pricing/starting` | public |
 | POST | `/api/waitlist` | public |
 | POST | `/api/offers/validate` | customer |
 | GET, POST | `/api/bookings` | customer |

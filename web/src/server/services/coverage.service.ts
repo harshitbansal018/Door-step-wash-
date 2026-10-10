@@ -9,6 +9,17 @@ export type Coverage =
   | { status: "unknown" };
 
 export const coverageService = {
+  async cities() {
+    const rows = await cityModel.listWithAreas(await createUserClient());
+    return rows.map((city) => ({
+      id: city.id,
+      name: city.name,
+      state: city.state,
+      isActive: city.is_active,
+      areas: city.areas.filter((area) => area.is_active).map((area) => area.name),
+    }));
+  },
+
   async check(pincode: string): Promise<Coverage> {
     const db = await createUserClient();
     const area = await cityModel.findAreaByPincode(db, pincode);

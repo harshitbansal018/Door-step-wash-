@@ -4,14 +4,15 @@ import { AppError } from "./errors";
 
 const schema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20).refine((value) => !value.startsWith("your-")),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
-  RESEND_API_KEY: z.string().optional(),
-  EMAIL_FROM: z.string().default("ShineDoor <no-reply@example.com>"),
+  BREVO_API_KEY: z.string().optional(),
+  BREVO_SENDER_EMAIL: z.email().optional(),
+  BREVO_SENDER_NAME: z.string().min(1).default("FoamValet"),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -29,4 +30,13 @@ export function env(): Env {
   }
   cached = parsed.data;
   return cached;
+}
+
+export function serviceRoleKey() {
+  const value = env().SUPABASE_SERVICE_ROLE_KEY;
+  const recognizedFormat = value?.startsWith("eyJ") || value?.startsWith("sb_secret_");
+  if (!value || !recognizedFormat || value.startsWith("your-") || value.includes("placeholder")) {
+    throw new AppError(503, "NOT_CONFIGURED", "Privileged database access is not configured. Add the Supabase service-role key.");
+  }
+  return value;
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
-import { isoDate, pagination, pincode, search, trimmed, uuid, vehicleType } from "./common";
+import { isoDate, pagination, phone, pincode, search, trimmed, uuid, vehicleType } from "./common";
+import { password as accountPassword } from "./auth.validator";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM.");
 const money = z.number().int().min(0).max(100_000);
@@ -86,20 +87,27 @@ export const updateSlotSchema = z.object({
   capacity: z.number().int().min(0).max(50).optional(),
   isBlocked: z.boolean().optional(),
 });
+export const adminSlotsQuery = z.object({ areaId: uuid, date: isoDate });
 
 // ---------------------------------------------------------------- workers
 export const createWorkerSchema = z.object({
   fullName: z.string().trim().min(2).max(120),
   email: z.email().trim().toLowerCase(),
+  password: accountPassword,
+  phone,
   areaId: uuid,
   commissionRate: z.number().min(0).max(1).default(0.4),
 });
 
 export const updateWorkerSchema = z.object({
+  fullName: z.string().trim().min(2).max(120).optional(),
+  email: z.email().trim().toLowerCase().optional(),
+  password: accountPassword.optional(),
   status: z.enum(["pending_kyc", "active", "suspended"]).optional(),
   areaId: uuid.optional(),
   commissionRate: z.number().min(0).max(1).optional(),
-  bankLast4: z.string().regex(/^\d{4}$/).optional(),
+  bankLast4: z.string().regex(/^\d{4}$/).nullable().optional(),
+  phone: phone.optional(),
 });
 
 export const listWorkersQuery = z.object({

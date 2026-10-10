@@ -22,12 +22,10 @@ const NEXT: Partial<Record<BookingStatus, { to: BookingStatus; needsPhoto?: Phot
   in_progress: { to: "completed", needsPhoto: "after" },
 };
 
-async function activeWorker(auth: AuthContext) {
+async function accessibleWorker(auth: AuthContext) {
   const worker = await workerModel.findById(createAdminClient(), auth.userId);
   if (!worker) throw forbidden("Your partner profile is not set up yet.");
-  if (worker.status !== "active") {
-    throw forbidden(worker.status === "pending_kyc" ? "Your documents are still being verified." : "Your account is suspended.");
-  }
+  if (worker.status === "suspended") throw forbidden("Your account is suspended.");
   return worker;
 }
 
@@ -66,17 +64,33 @@ export const workerService = {
       area: worker.area?.name ?? null,
       city: worker.city?.name ?? null,
       bankLast4: worker.bank_last4,
+      hasKycDocument: !!worker.kyc_document_path,
     };
   },
 
+  async uploadKyc(auth: AuthContext, file: File) {
+    const db = createAdminClient();
+    const worker = await workerModel.findById(db, auth.userId);
+    if (!worker) throw forbidden("Your partner profile is not set up yet.");
+    const path = await storageService.upload(db, "kyc", auth.userId, file);
+    try {
+      await workerModel.update(db, auth.userId, { kyc_document_path: path });
+    } catch (error) {
+      await storageService.remove(db, "kyc", [path]);
+      throw error;
+    }
+    if (worker.kyc_document_path) await storageService.remove(db, "kyc", [worker.kyc_document_path]).catch(() => undefined);
+    return { hasKycDocument: true, status: worker.status };
+  },
+
   async setOnline(auth: AuthContext, online: boolean) {
-    await activeWorker(auth);
+    await accessibleWorker(auth);
     const w = await workerModel.update(createAdminClient(), auth.userId, { is_online: online });
     return { isOnline: w.is_online };
   },
 
   async jobs(auth: AuthContext) {
-    const worker = await activeWorker(auth);
+    const worker = await accessibleWorker(auth);
     const db = createAdminClient();
     const today = todayIn("Asia/Kolkata");
     const [active, completed] = await Promise.all([
@@ -96,7 +110,7 @@ export const workerService = {
   },
 
   async job(auth: AuthContext, id: string) {
-    const worker = await activeWorker(auth);
+    const worker = await accessibleWorker(auth);
     const booking = await ownJob(auth, id);
     const db = createAdminClient();
     const photos = await bookingModel.photos(db, id);
@@ -110,7 +124,7 @@ export const workerService = {
 
   /** Accept or decline an assigned job. Declined jobs go back to the admin to reassign. */
   async respond(auth: AuthContext, id: string, accept: boolean) {
-    await activeWorker(auth);
+    await accessibleWorker(auth);
     const booking = await ownJob(auth, id);
     if (booking.status !== "assigned") throw unprocessable("This job is no longer waiting for a response.", "NOT_ASSIGNED");
 
@@ -144,7 +158,7 @@ export const workerService = {
   },
 
   async advance(auth: AuthContext, id: string, to: BookingStatus) {
-    await activeWorker(auth);
+    await accessibleWorker(auth);
     const booking = await ownJob(auth, id);
     const step = NEXT[booking.status];
     if (!step || step.to !== to) {
@@ -176,7 +190,7 @@ export const workerService = {
   },
 
   async uploadPhoto(auth: AuthContext, id: string, kind: PhotoKind, file: File) {
-    await activeWorker(auth);
+    await accessibleWorker(auth);
     const booking = await ownJob(auth, id);
     const allowed: BookingStatus[] = kind === "before" ? ["on_the_way", "in_progress"] : ["in_progress"];
     if (!allowed.includes(booking.status)) {
@@ -199,7 +213,7 @@ export const workerService = {
   },
 
   async earnings(auth: AuthContext) {
-    await activeWorker(auth);
+    await accessibleWorker(auth);
     const db = createAdminClient();
     const [unpaid, recent, payouts] = await Promise.all([
       earningModel.unpaidTotal(db, auth.userId),

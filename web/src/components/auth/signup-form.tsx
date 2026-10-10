@@ -85,7 +85,10 @@ export function SignupForm({ next }: { next: string }) {
 
       <p className="mt-8 text-center text-sm text-slate-600">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-brand-600 hover:text-brand-700">
+        <Link
+          href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+          className="font-semibold text-brand-600 hover:text-brand-700"
+        >
           Log in
         </Link>
       </p>

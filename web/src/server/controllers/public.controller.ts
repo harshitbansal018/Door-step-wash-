@@ -7,9 +7,11 @@ import { catalogQuery, coverageQuery, slotsQuery, waitlistSchema } from "../vali
 import { readJson, readQuery } from "../validators/common";
 
 export const publicController = {
+  cities: withPublic(async () => ok(await coverageService.cities())),
   coverage: withPublic(async (req) => ok(await coverageService.check(readQuery(req, coverageQuery).pincode))),
 
   catalog: withPublic(async (req) => ok(await catalogService.forArea(readQuery(req, catalogQuery).areaId))),
+  startingPrices: withPublic(async () => ok(await catalogService.startingPrices())),
 
   slots: withPublic(async (req) => {
     const q = readQuery(req, slotsQuery);

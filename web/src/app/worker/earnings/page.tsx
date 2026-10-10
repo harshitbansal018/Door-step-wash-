@@ -1,94 +1,18 @@
-import { ArrowDownLeft, Banknote } from "lucide-react";
-import { Badge, Card } from "@/components/ui";
-import { PAYOUTS, serviceName } from "@/lib/data";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Banknote, Wallet } from "lucide-react";
+import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/utils";
-import { COMMISSION_RATE, DEMO_WORKER, WORKER_JOBS } from "@/lib/worker-demo";
+import { ErrorState, LoadingState } from "@/components/data-state";
+import { Badge, Card, CardHeader, PageHeader, StatCard } from "@/components/ui";
 
-const WEEK = [
-  { day: "M", amount: 620 },
-  { day: "T", amount: 880 },
-  { day: "W", amount: 540 },
-  { day: "T", amount: 960 },
-  { day: "F", amount: 720 },
-  { day: "S", amount: 0 },
-  { day: "S", amount: 0 },
-];
-
+interface Earnings { unpaid: number; recent: { id: string; amount: number; status: string; bookingCode: string; service: string; date: string }[]; payouts: { id: string; periodStart: string; periodEnd: string; total: number; status: "pending"|"paid"; reference: string|null }[] }
 export default function WorkerEarningsPage() {
-  const max = Math.max(...WEEK.map((d) => d.amount));
-  const payouts = PAYOUTS.filter((p) => p.workerId === DEMO_WORKER.id);
-  const completed = WORKER_JOBS.filter((b) => b.status === "completed");
-
-  return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-bold text-slate-900">Earnings</h1>
-
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-br from-brand-600 to-brand-800 p-5 text-white">
-          <p className="text-sm text-brand-100">This week (unpaid)</p>
-          <p className="mt-1 text-3xl font-bold">{formatMoney(DEMO_WORKER.pendingEarnings)}</p>
-          <p className="mt-1 text-xs text-brand-100">Paid to your bank every Monday</p>
-        </div>
-        <div className="p-5">
-          <div className="flex h-28 items-end justify-between gap-2">
-            {WEEK.map((d, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                <div
-                  className="w-full rounded-t-md bg-brand-500"
-                  style={{ height: `${max ? (d.amount / max) * 88 : 0}px`, minHeight: d.amount ? 4 : 2, opacity: d.amount ? 1 : 0.2 }}
-                  title={formatMoney(d.amount)}
-                />
-                <span className="text-xs text-slate-500">{d.day}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Recent jobs</h2>
-        <Card className="divide-y divide-slate-100">
-          {completed.map((b) => (
-            <div key={b.id} className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                  <ArrowDownLeft className="size-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{serviceName(b.serviceId)}</p>
-                  <p className="text-xs text-slate-500">
-                    {formatDate(b.date)} · {b.id}
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm font-semibold text-emerald-600">+{formatMoney(Math.round(b.amount * COMMISSION_RATE))}</p>
-            </div>
-          ))}
-        </Card>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Payouts</h2>
-        <Card className="divide-y divide-slate-100">
-          {payouts.map((p) => (
-            <div key={p.id} className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                  <Banknote className="size-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{p.period}</p>
-                  <p className="text-xs text-slate-500">{p.reference}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-slate-900">{formatMoney(p.total)}</p>
-                <Badge tone="green">Paid</Badge>
-              </div>
-            </div>
-          ))}
-        </Card>
-      </section>
-    </div>
-  );
+  const [data, setData] = useState<Earnings|null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  const load = useCallback(async () => { setLoading(true); try { setData(await api<Earnings>("/api/worker/earnings")); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load earnings."); } finally { setLoading(false); } }, []);
+  useEffect(() => { void load(); }, [load]);
+  if (loading) return <LoadingState label="Loading earnings…" />; if (!data) return <ErrorState message={error} retry={load} />;
+  const paid = data.payouts.filter((item) => item.status === "paid").reduce((sum,item) => sum + item.total, 0);
+  return <><PageHeader title="Earnings" description="Commission generated from completed jobs and payout history." /><div className="mb-6 grid gap-4 sm:grid-cols-2"><StatCard label="Awaiting payout" value={formatMoney(data.unpaid)} icon={<Wallet className="size-5" />} /><StatCard label="Paid to date" value={formatMoney(paid)} icon={<Banknote className="size-5" />} /></div><div className="grid gap-6 lg:grid-cols-2"><Card className="overflow-hidden"><CardHeader title="Recent earnings" /><div className="divide-y">{data.recent.map((item) => <div key={item.id} className="flex justify-between p-4 text-sm"><div><strong>{item.bookingCode} · {item.service}</strong><p className="text-xs text-slate-500">{formatDate(item.date)}</p></div><div className="text-right"><strong>{formatMoney(item.amount)}</strong><p className="text-xs text-slate-500">{item.status.replaceAll("_", " ")}</p></div></div>)}{!data.recent.length && <p className="p-6 text-center text-sm text-slate-500">Complete a job to generate earnings.</p>}</div></Card><Card className="overflow-hidden"><CardHeader title="Payout history" /><div className="divide-y">{data.payouts.map((item) => <div key={item.id} className="flex justify-between p-4 text-sm"><div><strong>{item.periodStart}–{item.periodEnd}</strong><p className="text-xs text-slate-500">{item.reference ?? "Reference pending"}</p></div><div className="text-right"><strong>{formatMoney(item.total)}</strong><div><Badge tone={item.status === "paid" ? "green" : "amber"}>{item.status}</Badge></div></div></div>)}{!data.payouts.length && <p className="p-6 text-center text-sm text-slate-500">No payouts yet.</p>}</div></Card></div></>;
 }

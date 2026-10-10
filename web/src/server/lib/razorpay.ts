@@ -39,6 +39,11 @@ function safeEqual(a: string, b: string) {
 }
 
 export const razorpay = {
+  isConfigured() {
+    const { RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET } = env();
+    return Boolean(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET);
+  },
+
   keyId: () => credentials().keyId,
 
   /** Amounts are in rupees; Razorpay works in paise. */

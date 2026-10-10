@@ -1,135 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Clock } from "lucide-react";
-import { Badge, Button, Card, CardHeader, PageHeader, Select, Toggle } from "@/components/ui";
-import { CITIES, SERVICES, VEHICLE_TYPES, type Service, type VehicleType } from "@/lib/data";
+import { useCallback, useEffect, useState } from "react";
+import { CalendarPlus, Loader2, Save } from "lucide-react";
+import { api } from "@/lib/api";
+import type { City, VehicleType } from "@/lib/domain";
+import { VEHICLES } from "@/lib/domain";
+import { Badge, Button, Card, Input, Label, PageHeader, Select, Toggle } from "@/components/ui";
+import { ErrorState, LoadingState } from "@/components/data-state";
+
+interface AdminService { id: string; name: string; description: string; duration_min: number; features: string[]; is_popular: boolean; is_active: boolean; prices: { vehicleType: VehicleType; price: number; isActive: boolean }[] }
 
 export default function AdminServicesPage() {
-  const [services, setServices] = useState<Service[]>(SERVICES);
-  const [city, setCity] = useState(CITIES[0].id);
-  const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
-
-  function setPrice(id: string, v: VehicleType, value: number) {
-    setServices((ss) => ss.map((s) => (s.id === id ? { ...s, prices: { ...s.prices, [v]: value } } : s)));
-    setDirty(true);
-    setSaved(false);
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="Services & pricing"
-        description="Set which packages each city offers and what each vehicle type pays."
-        action={
-          <div className="flex items-center gap-3">
-            {saved && (
-              <span className="flex items-center gap-1 text-sm font-medium text-emerald-600">
-                <Check className="size-4" /> Saved
-              </span>
-            )}
-            <Button
-              disabled={!dirty}
-              onClick={() => {
-                setSaved(true);
-                setDirty(false);
-              }}
-            >
-              Save changes
-            </Button>
-          </div>
-        }
-      />
-
-      <Card className="overflow-hidden">
-        <CardHeader
-          title="Price list"
-          description="Prices include taxes. Area travel charges are added on top."
-          action={
-            <Select value={city} onChange={(e) => setCity(e.target.value)} className="w-44">
-              {CITIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                  {!c.isActive && " (inactive)"}
-                </option>
-              ))}
-            </Select>
-          }
-        />
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-3">Package</th>
-                {VEHICLE_TYPES.map((v) => (
-                  <th key={v.id} className="px-5 py-3">
-                    {v.label}
-                  </th>
-                ))}
-                <th className="px-5 py-3">Offered</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {services.map((s) => (
-                <tr key={s.id} className={s.isActive ? "" : "bg-slate-50/60"}>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-slate-900">{s.name}</p>
-                      {s.popular && <Badge tone="blue">Popular</Badge>}
-                    </div>
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-                      <Clock className="size-3" /> {s.durationMin} min · {s.features.length} steps
-                    </p>
-                  </td>
-                  {VEHICLE_TYPES.map((v) => (
-                    <td key={v.id} className="px-5 py-4">
-                      <div className="relative w-28">
-                        <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-slate-400">₹</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={s.prices[v.id]}
-                          onChange={(e) => setPrice(s.id, v.id, Number(e.target.value))}
-                          className="h-9 w-full rounded-lg pr-2 pl-7 text-sm tabular-nums ring-1 ring-slate-300 ring-inset focus:ring-2 focus:ring-brand-600 focus:outline-none"
-                          aria-label={`${s.name} price for ${v.label}`}
-                        />
-                      </div>
-                    </td>
-                  ))}
-                  <td className="px-5 py-4">
-                    <Toggle
-                      checked={s.isActive}
-                      onChange={(val) => {
-                        setServices((ss) => ss.map((x) => (x.id === s.id ? { ...x, isActive: val } : x)));
-                        setDirty(true);
-                        setSaved(false);
-                      }}
-                      label={`Offer ${s.name}`}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {services.map((s) => (
-          <Card key={s.id} className="p-5">
-            <h3 className="font-semibold text-slate-900">{s.name}</h3>
-            <p className="mt-1 text-sm text-slate-500">{s.description}</p>
-            <ul className="mt-4 space-y-2 text-sm text-slate-700">
-              {s.features.map((f) => (
-                <li key={f} className="flex gap-2">
-                  <Check className="size-4 shrink-0 text-brand-600" /> {f}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ))}
-      </div>
-    </>
-  );
+  const [cities, setCities] = useState<City[]>([]); const [cityId, setCityId] = useState(""); const [services, setServices] = useState<AdminService[]>([]);
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const loadCities = useCallback(async () => { try { const rows = await api<City[]>("/api/admin/cities"); setCities(rows); setCityId((old) => old || rows[0]?.id || ""); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load cities."); setLoading(false); } }, []);
+  useEffect(() => { void loadCities(); }, [loadCities]);
+  const load = useCallback(async () => { if (!cityId) return; setLoading(true); setError(""); try { const rows = await api<AdminService[]>(`/api/admin/services?cityId=${cityId}`); setServices(rows); const next: Record<string,string> = {}; rows.forEach((service) => VEHICLES.forEach((vehicle) => { const price = service.prices.find((item) => item.vehicleType === vehicle.id); next[`${service.id}:${vehicle.id}`] = price ? String(price.price) : ""; })); setPrices(next); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load services."); } finally { setLoading(false); } }, [cityId]);
+  useEffect(() => { void load(); }, [load]);
+  async function updateService(service: AdminService, patch: Record<string, unknown>) { setSaving(true); try { await api(`/api/admin/services/${service.id}`, { method: "PATCH", body: patch }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update service."); } finally { setSaving(false); } }
+  async function savePrices() { setSaving(true); try { const payload = services.flatMap((service) => VEHICLES.flatMap((vehicle) => { const value = Number(prices[`${service.id}:${vehicle.id}`]); return value > 0 ? [{ serviceId: service.id, vehicleType: vehicle.id, price: value, isActive: true }] : []; })); if (!payload.length) throw new Error("Enter at least one price."); await api("/api/admin/prices", { method: "PUT", body: { cityId, prices: payload } }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not save prices."); } finally { setSaving(false); } }
+  async function generateSlots() { setSaving(true); try { const result = await api<{ created: number }>("/api/admin/slots/generate", { method: "POST", body: { days: 14 } }); setError(`Generated ${result.created} new slots.`); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not generate slots."); } finally { setSaving(false); } }
+  return <>
+    <PageHeader title="Services & pricing" description="Manage the live catalog and city-specific prices." action={<div className="flex gap-2"><Button variant="secondary" onClick={generateSlots} disabled={saving}><CalendarPlus className="size-4" />Generate slots</Button><Button onClick={savePrices} disabled={saving || !cityId}><Save className="size-4" />Save prices</Button></div>} />
+    {error && <div role="status" className={`mb-4 rounded-lg p-3 text-sm ${error.startsWith("Generated") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{error}</div>}
+    <div className="mb-5 max-w-sm"><Label htmlFor="pricing-city">Pricing city</Label><Select id="pricing-city" value={cityId} onChange={(event) => setCityId(event.target.value)}>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</Select></div>
+    {loading ? <LoadingState /> : !services.length ? <ErrorState message="No services exist in the database." retry={load} /> : <div className="space-y-5">{services.map((service) => <Card key={service.id} className="p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{service.name}</h2>{service.is_popular && <Badge tone="blue">Popular</Badge>}<Badge tone={service.is_active ? "green" : "slate"}>{service.is_active ? "Active" : "Hidden"}</Badge></div><p className="mt-1 text-sm text-slate-500">{service.description}</p><p className="mt-2 text-xs text-slate-500">{service.duration_min} minutes · {service.features.join(" · ")}</p></div><div className="flex items-center gap-4"><label className="flex items-center gap-2 text-sm">Popular<Toggle checked={service.is_popular} onChange={(value) => updateService(service, { isPopular: value })} label={`Popular ${service.name}`} /></label><label className="flex items-center gap-2 text-sm">Active<Toggle checked={service.is_active} onChange={(value) => updateService(service, { isActive: value })} label={`Active ${service.name}`} /></label></div></div><div className="mt-5 grid gap-3 sm:grid-cols-4">{VEHICLES.map((vehicle) => <div key={vehicle.id}><Label htmlFor={`${service.id}-${vehicle.id}`}>{vehicle.label} price</Label><Input id={`${service.id}-${vehicle.id}`} type="number" min="1" value={prices[`${service.id}:${vehicle.id}`] ?? ""} onChange={(event) => setPrices({ ...prices, [`${service.id}:${vehicle.id}`]: event.target.value })} /></div>)}</div></Card>)}</div>}
+    {saving && <div className="fixed right-5 bottom-5 flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm text-white shadow-lg"><Loader2 className="size-4 animate-spin" />Saving…</div>}
+  </>;
 }

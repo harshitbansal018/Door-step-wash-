@@ -1,197 +1,94 @@
 "use client";
 
-import { useState } from "react";
-import { Clock, Plus, Star, UserCheck, Users } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Clock, ExternalLink, Loader2, Plus, Star, Upload, UserCheck, Users } from "lucide-react";
+import { api } from "@/lib/api";
+import type { City, Worker, WorkerStatus } from "@/lib/domain";
+import { PasswordInput, PasswordRules, passwordIsValid } from "@/components/auth/fields";
 import { Avatar, Badge, Button, Card, Input, Label, Modal, PageHeader, Select, StatCard } from "@/components/ui";
-import { CITIES, WORKERS, cityName, type Worker } from "@/lib/data";
-import { formatMoney } from "@/lib/utils";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
-const statusBadge = {
-  active: <Badge tone="green">Active</Badge>,
-  pending_kyc: <Badge tone="amber">KYC pending</Badge>,
-  suspended: <Badge tone="red">Suspended</Badge>,
+const badge: Record<WorkerStatus, React.ReactNode> = {
+  active: <Badge tone="green">Active</Badge>, pending_kyc: <Badge tone="amber">KYC pending</Badge>, suspended: <Badge tone="red">Suspended</Badge>,
 };
 
 export default function AdminWorkersPage() {
-  const [workers, setWorkers] = useState<Worker[]>(WORKERS);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ name: "", phone: "", cityId: CITIES[0].id, area: CITIES[0].areas[0].name });
+  const [workers, setWorkers] = useState<Worker[]>([]); const [cities, setCities] = useState<City[]>([]);
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false); const [uploading, setUploading] = useState<Worker | null>(null); const [file, setFile] = useState<File | null>(null);
+  const [editing, setEditing] = useState<Worker | null>(null); const [editForm, setEditForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", status: "pending_kyc" as WorkerStatus, areaId: "", commissionRate: "", bankLast4: "", phone: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "", phone: "", areaId: "", commissionRate: "40" });
 
-  const setStatus = (id: string, status: Worker["status"]) =>
-    setWorkers((ws) => ws.map((w) => (w.id === id ? { ...w, status } : w)));
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { const [workerRows, cityRows] = await Promise.all([api<Worker[]>("/api/admin/workers"), api<City[]>("/api/admin/cities")]); setWorkers(workerRows); setCities(cityRows); setForm((old) => ({ ...old, areaId: old.areaId || cityRows.flatMap((city) => city.areas).find((area) => area.is_active)?.id || "" })); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load workers."); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
-  const formCity = CITIES.find((c) => c.id === form.cityId)!;
+  function closeAddWorker() {
+    setAdding(false);
+    setForm((old) => ({ ...old, password: "", confirmPassword: "" }));
+  }
 
-  return (
-    <>
-      <PageHeader
-        title="Workers"
-        description="Onboard washers, verify documents and assign them to service areas."
-        action={
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="size-4" /> Add worker
-          </Button>
-        }
-      />
+  function closeEditWorker() {
+    setEditing(null);
+    setEditForm((old) => ({ ...old, password: "", confirmPassword: "" }));
+  }
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Active workers" value={String(workers.filter((w) => w.status === "active").length)} icon={<UserCheck className="size-5" />} />
-        <StatCard label="Online now" value={String(workers.filter((w) => w.online && w.status === "active").length)} icon={<Users className="size-5" />} />
-        <StatCard label="Awaiting KYC" value={String(workers.filter((w) => w.status === "pending_kyc").length)} icon={<Clock className="size-5" />} />
-      </div>
+  async function createWorker() {
+    setSaving(true); setError("");
+    try { await api("/api/admin/workers", { method: "POST", body: { fullName: form.fullName, email: form.email, password: form.password, phone: form.phone, areaId: form.areaId, commissionRate: Number(form.commissionRate) / 100 } }); setAdding(false); setForm((old) => ({ ...old, fullName: "", email: "", password: "", confirmPassword: "", phone: "" })); await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create worker."); }
+    finally { setSaving(false); }
+  }
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-5 py-3">Worker</th>
-                <th className="px-5 py-3">Area</th>
-                <th className="px-5 py-3">Rating</th>
-                <th className="px-5 py-3">Washes</th>
-                <th className="px-5 py-3">Unpaid earnings</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {workers.map((w) => (
-                <tr key={w.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <Avatar name={w.name} />
-                        <span
-                          className={`absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-white ${w.online ? "bg-emerald-500" : "bg-slate-300"}`}
-                        />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{w.name}</p>
-                        <p className="text-xs text-slate-500">+91 {w.phone}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 whitespace-nowrap">
-                    <p className="text-slate-900">{w.area}</p>
-                    <p className="text-xs text-slate-500">{cityName(w.cityId)}</p>
-                  </td>
-                  <td className="px-5 py-4 whitespace-nowrap">
-                    {w.rating ? (
-                      <span className="flex items-center gap-1 font-medium text-slate-900">
-                        <Star className="size-4 fill-amber-400 text-amber-400" /> {w.rating}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4 text-slate-700">{w.jobsDone}</td>
-                  <td className="px-5 py-4 font-medium text-slate-900">{formatMoney(w.pendingEarnings)}</td>
-                  <td className="px-5 py-4">{statusBadge[w.status]}</td>
-                  <td className="px-5 py-4 text-right whitespace-nowrap">
-                    {w.status === "pending_kyc" && (
-                      <Button size="sm" onClick={() => setStatus(w.id, "active")}>
-                        Approve
-                      </Button>
-                    )}
-                    {w.status === "active" && (
-                      <Button size="sm" variant="secondary" onClick={() => setStatus(w.id, "suspended")}>
-                        Suspend
-                      </Button>
-                    )}
-                    {w.status === "suspended" && (
-                      <Button size="sm" variant="secondary" onClick={() => setStatus(w.id, "active")}>
-                        Reactivate
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+  async function updateWorker(worker: Worker, status: WorkerStatus) {
+    setSaving(true); setError("");
+    try { await api(`/api/admin/workers/${worker.id}`, { method: "PATCH", body: { status } }); await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update worker."); }
+    finally { setSaving(false); }
+  }
 
-      <Modal
-        open={adding}
-        onClose={() => setAdding(false)}
-        title="Add worker"
-        description="The worker can log in once their KYC documents are approved."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setAdding(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!form.name || form.phone.length < 10}
-              onClick={() => {
-                setWorkers((ws) => [
-                  ...ws,
-                  {
-                    id: `w${Date.now()}`,
-                    name: form.name,
-                    phone: form.phone,
-                    cityId: form.cityId,
-                    area: form.area,
-                    online: false,
-                    rating: 0,
-                    jobsDone: 0,
-                    status: "pending_kyc",
-                    pendingEarnings: 0,
-                    joined: new Date().toISOString().slice(0, 10),
-                  },
-                ]);
-                setAdding(false);
-                setForm({ ...form, name: "", phone: "" });
-              }}
-            >
-              Add worker
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="w-name">Full name</Label>
-            <Input id="w-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div>
-            <Label htmlFor="w-phone">Mobile number</Label>
-            <Input
-              id="w-phone"
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="w-city">City</Label>
-              <Select
-                id="w-city"
-                value={form.cityId}
-                onChange={(e) => {
-                  const c = CITIES.find((x) => x.id === e.target.value)!;
-                  setForm({ ...form, cityId: c.id, area: c.areas[0]?.name ?? "" });
-                }}
-              >
-                {CITIES.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="w-area">Area</Label>
-              <Select id="w-area" value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })}>
-                {formCity.areas.map((a) => (
-                  <option key={a.id}>{a.name}</option>
-                ))}
-              </Select>
-            </div>
-          </div>
-        </div>
-      </Modal>
-    </>
-  );
+  async function uploadKyc() {
+    if (!uploading || !file) return;
+    setSaving(true); setError("");
+    try { const body = new FormData(); body.set("file", file); await api(`/api/admin/workers/${uploading.id}/kyc`, { method: "POST", body }); setUploading(null); setFile(null); await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not upload KYC."); }
+    finally { setSaving(false); }
+  }
+
+  async function saveWorker() {
+    if (!editing) return;
+    setSaving(true); setError("");
+    try { await api(`/api/admin/workers/${editing.id}`, { method: "PATCH", body: { fullName: editForm.fullName, email: editForm.email, ...(editForm.password ? { password: editForm.password } : {}), status: editForm.status, areaId: editForm.areaId, commissionRate: Number(editForm.commissionRate) / 100, phone: editForm.phone, bankLast4: editForm.bankLast4 || null } }); setEditing(null); setEditForm((old) => ({ ...old, password: "", confirmPassword: "" })); await load(); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update worker."); }
+    finally { setSaving(false); }
+  }
+
+  async function viewKyc(worker: Worker) {
+    try { const result = await api<{ url: string }>(`/api/admin/workers/${worker.id}/kyc`); window.open(result.url, "_blank", "noopener,noreferrer"); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : "Could not open KYC."); }
+  }
+
+  const areas = cities.flatMap((city) => city.areas.map((area) => ({ ...area, city: city.name })));
+  return <>
+    <PageHeader title="Workers" description="Create partner accounts, verify KYC and control access." action={<Button onClick={() => setAdding(true)}><Plus className="size-4" />Add worker</Button>} />
+    {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+    {loading ? <LoadingState label="Loading workers…" /> : <>
+      <div className="mb-6 grid gap-4 sm:grid-cols-3"><StatCard label="Active workers" value={String(workers.filter((item) => item.status === "active").length)} icon={<UserCheck className="size-5" />} /><StatCard label="Online now" value={String(workers.filter((item) => item.status === "active" && item.isOnline).length)} icon={<Users className="size-5" />} /><StatCard label="Awaiting KYC" value={String(workers.filter((item) => item.status === "pending_kyc").length)} icon={<Clock className="size-5" />} /></div>
+      {!workers.length ? <EmptyState title="No workers" description="Add your first service partner to begin assigning bookings." /> : <Card className="overflow-hidden"><div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Worker</th><th className="px-5 py-3">Area</th><th className="px-5 py-3">Performance</th><th className="px-5 py-3">KYC</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{workers.map((worker) => <tr key={worker.id}><td className="px-5 py-4"><div className="flex items-center gap-3"><Avatar name={worker.name} /><div><p className="font-medium">{worker.name}</p><p className="text-xs text-slate-500">{worker.email}{worker.phone ? ` · ${worker.phone}` : ""}</p></div></div></td><td className="px-5 py-4">{worker.area}<span className="block text-xs text-slate-500">{worker.city}</span></td><td className="px-5 py-4"><span className="flex gap-1"><Star className="size-4 fill-amber-400 text-amber-400" />{worker.rating || "New"}</span><span className="text-xs text-slate-500">{worker.jobsDone} jobs · {Math.round(worker.commissionRate * 100)}%</span></td><td className="px-5 py-4">{worker.hasKycDocument ? <Button size="sm" variant="ghost" onClick={() => viewKyc(worker)}><ExternalLink className="size-4" />View</Button> : <Button size="sm" variant="secondary" onClick={() => setUploading(worker)}><Upload className="size-4" />Upload</Button>}</td><td className="px-5 py-4">{badge[worker.status]}</td><td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => { setEditing(worker); setEditForm({ fullName: worker.name, email: worker.email, password: "", confirmPassword: "", status: worker.status, areaId: worker.areaId, commissionRate: String(Math.round(worker.commissionRate * 100)), bankLast4: worker.bankLast4 ?? "", phone: worker.phone ?? "" }); }}>Edit</Button>{worker.status === "pending_kyc" && <Button size="sm" disabled={saving || !worker.hasKycDocument} onClick={() => updateWorker(worker, "active")}>Activate</Button>}{worker.status === "active" && <Button size="sm" variant="secondary" disabled={saving} onClick={() => updateWorker(worker, "suspended")}>Suspend</Button>}{worker.status === "suspended" && <Button size="sm" variant="secondary" disabled={saving} onClick={() => updateWorker(worker, "active")}>Reactivate</Button>}</div></td></tr>)}</tbody></table></div></Card>}
+    </>}
+    {!loading && error && !workers.length && <ErrorState message={error} retry={load} />}
+
+    <Modal open={adding} onClose={closeAddWorker} title="Add worker" description="Create the worker's login. Their email and initial password will be sent automatically." footer={<><Button variant="secondary" onClick={closeAddWorker}>Cancel</Button><Button disabled={saving || form.fullName.trim().length < 2 || !form.email.includes("@") || !passwordIsValid(form.password) || form.password !== form.confirmPassword || !/^\d{10}$/.test(form.phone) || !form.areaId} onClick={createWorker}>{saving && <Loader2 className="size-4 animate-spin" />}Create account</Button></>}>
+      <div className="space-y-4"><div><Label htmlFor="worker-name">Full name</Label><Input id="worker-name" value={form.fullName} onChange={(event) => setForm({ ...form, fullName: event.target.value })} /></div><div><Label htmlFor="worker-email">Email address</Label><Input id="worker-email" type="email" autoComplete="off" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></div><div><Label htmlFor="worker-password">Initial password</Label><PasswordInput id="worker-password" autoComplete="new-password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /><PasswordRules password={form.password} /></div><div><Label htmlFor="worker-confirm-password">Confirm password</Label><PasswordInput id="worker-confirm-password" autoComplete="new-password" value={form.confirmPassword} onChange={(event) => setForm({ ...form, confirmPassword: event.target.value })} />{form.confirmPassword && form.confirmPassword !== form.password && <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>}</div><div><Label htmlFor="worker-phone">Mobile number</Label><Input id="worker-phone" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value.replace(/\D/g, "").slice(0,10) })} /></div><div><Label htmlFor="worker-area">Service area</Label><Select id="worker-area" value={form.areaId} onChange={(event) => setForm({ ...form, areaId: event.target.value })}>{areas.map((area) => <option key={area.id} value={area.id}>{area.city} · {area.name}</option>)}</Select></div><div><Label htmlFor="commission">Commission percentage</Label><Input id="commission" type="number" min="0" max="100" value={form.commissionRate} onChange={(event) => setForm({ ...form, commissionRate: event.target.value })} /></div></div>
+    </Modal>
+    <Modal open={!!uploading} onClose={() => setUploading(null)} title={`Upload KYC for ${uploading?.name ?? "worker"}`} footer={<><Button variant="secondary" onClick={() => setUploading(null)}>Cancel</Button><Button disabled={!file || saving} onClick={uploadKyc}>{saving && <Loader2 className="size-4 animate-spin" />}Upload document</Button></>}><Label htmlFor="kyc-file">PDF or image document</Label><Input id="kyc-file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></Modal>
+    <Modal open={!!editing} onClose={closeEditWorker} title={`Edit ${editing?.name ?? "worker"}`} description="Leave the password blank to keep the current one. Credential changes are emailed to the worker." footer={<><Button variant="secondary" onClick={closeEditWorker}>Cancel</Button><Button disabled={saving || editForm.fullName.trim().length < 2 || !editForm.email.includes("@") || (!!editForm.password && !passwordIsValid(editForm.password)) || editForm.password !== editForm.confirmPassword || !editForm.areaId || !/^\d{10}$/.test(editForm.phone) || Number(editForm.commissionRate) < 0 || Number(editForm.commissionRate) > 100 || (!!editForm.bankLast4 && !/^\d{4}$/.test(editForm.bankLast4))} onClick={saveWorker}>{saving && <Loader2 className="size-4 animate-spin" />}Save changes</Button></>}><div className="space-y-4"><div><Label htmlFor="edit-name">Full name</Label><Input id="edit-name" value={editForm.fullName} onChange={(event) => setEditForm({ ...editForm, fullName: event.target.value })} /></div><div><Label htmlFor="edit-email">Login email</Label><Input id="edit-email" type="email" autoComplete="off" value={editForm.email} onChange={(event) => setEditForm({ ...editForm, email: event.target.value })} /></div><div><Label htmlFor="edit-password">New password (optional)</Label><PasswordInput id="edit-password" autoComplete="new-password" value={editForm.password} onChange={(event) => setEditForm({ ...editForm, password: event.target.value })} />{editForm.password && <PasswordRules password={editForm.password} />}</div><div><Label htmlFor="edit-confirm-password">Confirm new password</Label><PasswordInput id="edit-confirm-password" autoComplete="new-password" value={editForm.confirmPassword} onChange={(event) => setEditForm({ ...editForm, confirmPassword: event.target.value })} />{editForm.confirmPassword && editForm.confirmPassword !== editForm.password && <p className="mt-1 text-xs text-red-600">Passwords do not match.</p>}</div><div><Label htmlFor="edit-status">Status</Label><Select id="edit-status" value={editForm.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as WorkerStatus })}><option value="pending_kyc">KYC pending</option><option value="active" disabled={!editing?.hasKycDocument}>Active</option><option value="suspended">Suspended</option></Select></div><div><Label htmlFor="edit-phone">Mobile number</Label><Input id="edit-phone" inputMode="numeric" value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value.replace(/\D/g, "").slice(0,10) })} /></div><div><Label htmlFor="edit-area">Service area</Label><Select id="edit-area" value={editForm.areaId} onChange={(event) => setEditForm({ ...editForm, areaId: event.target.value })}>{areas.map((area) => <option key={area.id} value={area.id}>{area.city} · {area.name}</option>)}</Select></div><div><Label htmlFor="edit-commission">Commission percentage</Label><Input id="edit-commission" type="number" min="0" max="100" value={editForm.commissionRate} onChange={(event) => setEditForm({ ...editForm, commissionRate: event.target.value })} /></div><div><Label htmlFor="bank-last4">Bank account last 4 digits</Label><Input id="bank-last4" inputMode="numeric" maxLength={4} value={editForm.bankLast4} onChange={(event) => setEditForm({ ...editForm, bankLast4: event.target.value.replace(/\D/g, "").slice(0,4) })} /></div></div></Modal>
+  </>;
 }

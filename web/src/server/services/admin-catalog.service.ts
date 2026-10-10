@@ -8,6 +8,10 @@ import type { ServiceRow } from "../types/db";
 import type { setPricesSchema, updateServiceSchema, updateSlotSchema } from "../validators/admin.validator";
 
 export const adminCatalogService = {
+  async slots(areaId: string, date: string) {
+    return slotModel.listForAreaAndDate(createAdminClient(), areaId, date);
+  },
+
   async servicesWithPrices(cityId: string) {
     const db = createAdminClient();
     const [services, prices] = await Promise.all([serviceModel.listAll(db), serviceModel.pricesForCity(db, cityId)]);

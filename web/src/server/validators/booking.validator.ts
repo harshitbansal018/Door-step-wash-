@@ -13,7 +13,7 @@ export const slotsQuery = z.object({ areaId: uuid, date: isoDate });
 export const waitlistSchema = z.object({ email: z.email().trim().toLowerCase(), pincode });
 
 export const validateOfferSchema = z.object({
-  code: offerCode,
+  code: offerCode.optional(),
   pincode,
   serviceId: uuid,
   vehicleType,

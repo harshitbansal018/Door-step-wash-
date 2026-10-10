@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 @theme {
@@ -21,8 +21,119 @@
 
 body {
   @apply bg-white text-slate-900;
+  text-rendering: optimizeLegibility;
 }
 
 ::selection {
   @apply bg-brand-100 text-brand-900;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(37 99 235 / 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(37 99 235 / 0.055) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.text-gradient {
+  background: linear-gradient(100deg, #2563eb 10%, #0891b2 62%, #2563eb 92%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 7s ease-in-out infinite;
+}
+
+.interactive-card {
+  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+}
+
+.interactive-card:hover {
+  transform: translateY(-6px);
+  border-color: rgb(147 197 253 / 0.9);
+  box-shadow: 0 24px 48px -24px rgb(15 23 42 / 0.28);
+}
+
+.hero-console {
+  transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
+  transition: transform 500ms cubic-bezier(.2,.8,.2,1), box-shadow 500ms ease;
+}
+
+.hero-console:hover {
+  transform: perspective(1200px) rotateY(0deg) rotateX(0deg) translateY(-4px);
+  box-shadow: 0 36px 80px -28px rgb(30 64 175 / 0.45);
+}
+
+.cta-panel::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 20%, rgb(255 255 255 / 0.06) 42%, transparent 64%);
+  transform: translateX(-100%);
+  animation: sheen 7s ease-in-out infinite;
+}
+
+.hero-enter {
+  animation: hero-in 700ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.hero-enter-delayed {
+  animation: hero-in 800ms 120ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.menu-enter {
+  transform-origin: top;
+  animation: menu-in 180ms ease-out both;
+}
+
+.float-slow {
+  animation: float 9s ease-in-out infinite;
+}
+
+.float-slow-reverse {
+  animation: float 11s ease-in-out infinite reverse;
+}
+
+@keyframes hero-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, 18px, 0) scale(1.04); }
+}
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes sheen {
+  0%, 58% { transform: translateX(-100%); }
+  78%, 100% { transform: translateX(100%); }
+}
+
+@keyframes menu-in {
+  from { opacity: 0; transform: translateY(-8px) scaleY(.98); }
+  to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hero-console,
+  .hero-console:hover,
+  .interactive-card:hover { transform: none; }
 }

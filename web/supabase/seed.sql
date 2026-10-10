@@ -45,7 +45,7 @@ on conflict (slug) do nothing;
 insert into public.city_services (city_id, service_id, vehicle_type, price)
 select c.id, s.id, p.vehicle_type::public.vehicle_type, p.price
   from (values
-    ('express', 'hatchback', 349), ('express', 'sedan', 399), ('express', 'suv', 499), ('express', 'bike', 149),
+    ('express', 'hatchback', 259), ('express', 'sedan', 399), ('express', 'suv', 499), ('express', 'bike', 99),
     ('premium', 'hatchback', 649), ('premium', 'sedan', 749), ('premium', 'suv', 899), ('premium', 'bike', 249),
     ('deluxe', 'hatchback', 1499), ('deluxe', 'sedan', 1699), ('deluxe', 'suv', 1999), ('deluxe', 'bike', 499)
   ) as p (service_slug, vehicle_type, price)

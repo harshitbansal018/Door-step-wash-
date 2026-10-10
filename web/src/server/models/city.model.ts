@@ -7,6 +7,10 @@ export type AreaWithCity = AreaRow & { city: CityRow };
 export type CityWithAreas = CityRow & { areas: (AreaRow & { pincodes: string[] })[] };
 
 export const cityModel = {
+  async listAll(db: Db): Promise<CityRow[]> {
+    return check(await db.from("cities").select("*").order("name")) as CityRow[];
+  },
+
   async findAreaByPincode(db: Db, pincode: string): Promise<AreaWithCity | null> {
     const row = check(
       await db

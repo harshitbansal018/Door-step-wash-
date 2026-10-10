@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { env } from "./env";
+import { env, serviceRoleKey } from "./env";
 
 export type Db = SupabaseClient;
 
@@ -36,8 +36,8 @@ let adminClient: Db | null = null;
  */
 export function createAdminClient(): Db {
   if (adminClient) return adminClient;
-  const { NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = env();
-  adminClient = createClient(NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  const { NEXT_PUBLIC_SUPABASE_URL } = env();
+  adminClient = createClient(NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey(), {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   return adminClient;

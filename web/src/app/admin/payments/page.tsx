@@ -1,151 +1,34 @@
 "use client";
 
-import { useState } from "react";
-import { Banknote, CheckCircle2, Landmark, RotateCcw, Wallet } from "lucide-react";
-import { Avatar, Badge, Button, Card, CardHeader, Modal, PageHeader, StatCard } from "@/components/ui";
-import { BOOKINGS, PAYOUTS, WORKERS, workerById } from "@/lib/data";
-import { formatDate, formatMoney } from "@/lib/utils";
+import { useCallback, useEffect, useState } from "react";
+import { Banknote, Loader2, RotateCcw, Wallet } from "lucide-react";
+import { api } from "@/lib/api";
+import { formatMoney } from "@/lib/utils";
+import { Badge, Button, Card, CardHeader, Input, Label, Modal, PageHeader, StatCard } from "@/components/ui";
+import { EmptyState, LoadingState } from "@/components/data-state";
+
+interface Transaction { id: string; booking_id: string; provider_payment_id: string|null; amount: number; currency: string; status: string; method: string|null; created_at: string; booking: { code: string; contact_name: string; slot_date: string } }
+interface Payout { id: string; workerId: string; workerName: string; bankLast4: string|null; periodStart: string; periodEnd: string; total: number; status: "pending"|"paid"; reference: string|null; paidAt: string|null }
+type Transactions = { items: Transaction[]; total: number };
 
 export default function AdminPaymentsPage() {
-  const [paid, setPaid] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const transactions = BOOKINGS.filter((b) => b.status !== "pending_payment");
-  const collected = transactions.filter((b) => b.status !== "cancelled").reduce((s, b) => s + b.amount, 0);
-  const refunded = transactions.filter((b) => b.status === "cancelled").reduce((s, b) => s + b.amount, 0);
-  const due = WORKERS.filter((w) => w.pendingEarnings > 0);
-  const totalDue = due.reduce((s, w) => s + w.pendingEarnings, 0);
-
-  return (
-    <>
-      <PageHeader title="Payments" description="Money collected into your account, refunds, and weekly worker payouts." />
-
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Collected (this week)" value={formatMoney(collected)} icon={<Wallet className="size-5" />} />
-        <StatCard label="Next settlement" value={formatMoney(26730)} icon={<Landmark className="size-5" />} />
-        <StatCard label="Refunded" value={formatMoney(refunded)} icon={<RotateCcw className="size-5" />} />
-        <StatCard label="Due to workers" value={paid ? formatMoney(0) : formatMoney(totalDue)} icon={<Banknote className="size-5" />} />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-5">
-        <Card className="overflow-hidden xl:col-span-3">
-          <CardHeader title="Transactions" description="Customer payments via the payment gateway" />
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-5 py-3">Booking</th>
-                  <th className="px-5 py-3">Customer</th>
-                  <th className="px-5 py-3">Method</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {transactions.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3.5 whitespace-nowrap">
-                      <p className="font-medium text-slate-900">{b.id}</p>
-                      <p className="text-xs text-slate-500">{formatDate(b.date)}</p>
-                    </td>
-                    <td className="px-5 py-3.5 whitespace-nowrap text-slate-700">{b.customer}</td>
-                    <td className="px-5 py-3.5 text-slate-700">{b.payment}</td>
-                    <td className="px-5 py-3.5">
-                      {b.status === "cancelled" ? (
-                        <Badge tone="amber">Refunded</Badge>
-                      ) : b.payment === "Cash" ? (
-                        <Badge tone="slate">Cash collected</Badge>
-                      ) : (
-                        <Badge tone="green">Captured</Badge>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right font-medium whitespace-nowrap text-slate-900">
-                      {b.status === "cancelled" ? "−" : ""}
-                      {formatMoney(b.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <div className="space-y-6 xl:col-span-2">
-          <Card>
-            <CardHeader
-              title="Worker payouts"
-              description="Week of 22–28 Sep 2026"
-              action={
-                <Button size="sm" disabled={paid} onClick={() => setConfirming(true)}>
-                  {paid ? "Paid" : "Pay all"}
-                </Button>
-              }
-            />
-            <div className="divide-y divide-slate-100">
-              {due.map((w) => (
-                <div key={w.id} className="flex items-center gap-3 px-5 py-3">
-                  <Avatar name={w.name} className="size-8" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900">{w.name}</p>
-                    <p className="text-xs text-slate-500">{w.jobsDone} lifetime washes</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">{formatMoney(w.pendingEarnings)}</p>
-                    {paid ? <Badge tone="green">Paid</Badge> : <Badge tone="amber">Due</Badge>}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {paid && (
-              <p className="flex items-center gap-2 border-t border-slate-100 px-5 py-3 text-sm text-emerald-700">
-                <CheckCircle2 className="size-4" /> {formatMoney(totalDue)} sent to {due.length} workers.
-              </p>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader title="Payout history" />
-            <div className="divide-y divide-slate-100">
-              {PAYOUTS.map((p) => (
-                <div key={p.id} className="flex items-center justify-between px-5 py-3 text-sm">
-                  <div>
-                    <p className="font-medium text-slate-900">{workerById(p.workerId)?.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {p.period} · {p.reference}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-slate-900">{formatMoney(p.total)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <Modal
-        open={confirming}
-        onClose={() => setConfirming(false)}
-        title="Confirm payouts"
-        description={`Send ${formatMoney(totalDue)} to ${due.length} workers' bank accounts?`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                setPaid(true);
-                setConfirming(false);
-              }}
-            >
-              Send {formatMoney(totalDue)}
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-slate-600">
-          Payouts are sent by bank transfer. Each worker gets an SMS with the reference number. This can&apos;t be undone.
-        </p>
-      </Modal>
-    </>
-  );
+  const [transactions, setTransactions] = useState<Transaction[]>([]); const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const [paying, setPaying] = useState<Payout|null>(null); const [reference, setReference] = useState("");
+  const [refunding, setRefunding] = useState<Transaction|null>(null); const [refundAmount, setRefundAmount] = useState(""); const [refundReason, setRefundReason] = useState("");
+  const load = useCallback(async () => { setLoading(true); setError(""); try { const [tx, po] = await Promise.all([api<Transactions>("/api/admin/transactions?page=1&pageSize=100"), api<Payout[]>("/api/admin/payouts")]); setTransactions(tx.items); setPayouts(po); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load payments."); } finally { setLoading(false); } }, []);
+  useEffect(() => { void load(); }, [load]);
+  async function buildPayouts() { setSaving(true); try { const result = await api<{ created: number }>("/api/admin/payouts", { method: "POST" }); setError(`Created ${result.created} payout records.`); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not build payouts."); } finally { setSaving(false); } }
+  async function markPaid() { if (!paying) return; setSaving(true); try { await api(`/api/admin/payouts/${paying.id}/pay`, { method: "POST", body: { reference } }); setPaying(null); setReference(""); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not mark payout paid."); } finally { setSaving(false); } }
+  async function refund() { if (!refunding) return; setSaving(true); try { await api("/api/admin/refunds", { method: "POST", body: { bookingId: refunding.booking_id, amount: Number(refundAmount), reason: refundReason } }); setRefunding(null); setRefundAmount(""); setRefundReason(""); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not start refund."); } finally { setSaving(false); } }
+  const captured = transactions.filter((item) => ["captured","partially_refunded"].includes(item.status)).reduce((sum,item) => sum + item.amount, 0);
+  const due = payouts.filter((item) => item.status === "pending").reduce((sum,item) => sum + item.total, 0);
+  const paid = payouts.filter((item) => item.status === "paid").reduce((sum,item) => sum + item.total, 0);
+  return <>
+    <PageHeader title="Payments" description="Gateway transactions, refunds and recorded bank payouts." action={<Button onClick={buildPayouts} disabled={saving}><Banknote className="size-4" />Build weekly payouts</Button>} />
+    {error && <div role="status" className={`mb-4 rounded-lg p-3 text-sm ${error.startsWith("Created") ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{error}</div>}
+    {loading ? <LoadingState /> : <><div className="mb-6 grid gap-4 sm:grid-cols-3"><StatCard label="Captured volume" value={formatMoney(captured)} icon={<Wallet className="size-5" />} /><StatCard label="Pending payouts" value={formatMoney(due)} icon={<Banknote className="size-5" />} /><StatCard label="Paid to workers" value={formatMoney(paid)} icon={<RotateCcw className="size-5" />} /></div><div className="grid gap-6 xl:grid-cols-5"><Card className="overflow-hidden xl:col-span-3"><CardHeader title="Transactions" /><div className="overflow-x-auto">{transactions.length ? <table className="min-w-full divide-y text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Booking</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">Status</th><th className="px-5 py-3">Amount</th><th className="px-5 py-3"></th></tr></thead><tbody className="divide-y">{transactions.map((item) => <tr key={item.id}><td className="px-5 py-4"><strong>{item.booking.code}</strong><span className="block text-xs text-slate-500">{new Date(item.created_at).toLocaleString("en-IN")}</span></td><td className="px-5 py-4">{item.booking.contact_name}</td><td className="px-5 py-4"><Badge tone={item.status === "captured" ? "green" : item.status.includes("refund") ? "amber" : item.status === "failed" ? "red" : "slate"}>{item.status.replaceAll("_", " ")}</Badge></td><td className="px-5 py-4 font-semibold">{formatMoney(item.amount)}</td><td className="px-5 py-4 text-right">{["captured","partially_refunded"].includes(item.status) && <Button size="sm" variant="secondary" onClick={() => { setRefunding(item); setRefundAmount(String(item.amount)); }}>Refund</Button>}</td></tr>)}</tbody></table> : <div className="p-5"><EmptyState title="No transactions" description="Captured customer payments will appear here." /></div>}</div></Card><Card className="overflow-hidden xl:col-span-2"><CardHeader title="Worker payouts" description="Complete the bank transfer first, then record its reference." /><div className="divide-y">{payouts.map((item) => <div key={item.id} className="p-5"><div className="flex justify-between"><div><strong className="text-sm">{item.workerName}</strong><p className="text-xs text-slate-500">{item.periodStart}–{item.periodEnd}{item.bankLast4 ? ` · bank ••••${item.bankLast4}` : " · bank details missing"}</p></div><strong>{formatMoney(item.total)}</strong></div><div className="mt-3 flex items-center justify-between"><Badge tone={item.status === "paid" ? "green" : "amber"}>{item.status}</Badge>{item.status === "pending" ? <Button size="sm" disabled={!item.bankLast4} onClick={() => setPaying(item)}>Record paid</Button> : <span className="text-xs text-slate-500">{item.reference}</span>}</div></div>)}{!payouts.length && <p className="p-5 text-sm text-slate-500">No payouts have been generated.</p>}</div></Card></div></>}
+    <Modal open={!!paying} onClose={() => setPaying(null)} title={`Record payout to ${paying?.workerName ?? "worker"}`} description="This records an external bank transfer; it does not send money." footer={<><Button variant="secondary" onClick={() => setPaying(null)}>Cancel</Button><Button disabled={saving || reference.trim().length < 4} onClick={markPaid}>{saving && <Loader2 className="size-4 animate-spin" />}Mark paid</Button></>}><Label htmlFor="reference">Bank transfer reference</Label><Input id="reference" value={reference} onChange={(event) => setReference(event.target.value)} /></Modal>
+    <Modal open={!!refunding} onClose={() => setRefunding(null)} title={`Refund ${refunding?.booking.code ?? "payment"}`} footer={<><Button variant="secondary" onClick={() => setRefunding(null)}>Cancel</Button><Button variant="danger" disabled={saving || Number(refundAmount) < 1 || refundReason.trim().length < 3} onClick={refund}>{saving && <Loader2 className="size-4 animate-spin" />}Start refund</Button></>}><div className="space-y-4"><div><Label htmlFor="refund-amount">Amount</Label><Input id="refund-amount" type="number" min="1" max={refunding?.amount} value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} /></div><div><Label htmlFor="refund-reason">Reason</Label><Input id="refund-reason" value={refundReason} onChange={(event) => setRefundReason(event.target.value)} /></div></div></Modal>
+  </>;
 }

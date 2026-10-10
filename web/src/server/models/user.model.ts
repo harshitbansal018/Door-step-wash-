@@ -12,7 +12,7 @@ export const userModel = {
     return check(await db.from("profiles").select("*").eq("email", email).maybeSingle());
   },
 
-  async update(db: Db, id: string, patch: Partial<Pick<ProfileRow, "full_name" | "phone" | "role" | "is_blocked">>) {
+  async update(db: Db, id: string, patch: Partial<Pick<ProfileRow, "email" | "full_name" | "phone" | "role" | "is_blocked">>) {
     return check(await db.from("profiles").update(patch).eq("id", id).select("*").single()) as ProfileRow;
   },
 

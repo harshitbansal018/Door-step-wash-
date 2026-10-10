@@ -87,7 +87,10 @@ export function VerifyEmailForm({ initialEmail, next, justSent }: { initialEmail
         >
           {cooldown.seconds > 0 ? `Resend code in ${cooldown.seconds}s` : "Resend code"}
         </button>
-        <Link href="/login" className="font-medium text-slate-600 hover:text-slate-900">
+        <Link
+          href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+          className="font-medium text-slate-600 hover:text-slate-900"
+        >
           Back to log in
         </Link>
       </div>

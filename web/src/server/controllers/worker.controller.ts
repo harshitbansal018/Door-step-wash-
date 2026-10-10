@@ -11,6 +11,13 @@ type IdParams = { id: string };
 export const workerController = {
   me: withAuth(["worker"], async (_req, auth) => ok(await workerService.me(auth))),
 
+  uploadKyc: withAuth(["worker"], async (req, auth) => {
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) throw badRequest("Attach a KYC document in the `file` field.", "FILE_REQUIRED");
+    return created(await workerService.uploadKyc(auth, file));
+  }),
+
   setStatus: withAuth(["worker"], async (req, auth) => {
     const { online } = await readJson(req, onlineSchema);
     return ok(await workerService.setOnline(auth, online));

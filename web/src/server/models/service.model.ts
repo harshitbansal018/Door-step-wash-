@@ -16,6 +16,10 @@ export const serviceModel = {
     return check(await db.from("city_services").select("*").eq("city_id", cityId)) as CityServiceRow[];
   },
 
+  async activePrices(db: Db): Promise<CityServiceRow[]> {
+    return check(await db.from("city_services").select("*").eq("is_active", true)) as CityServiceRow[];
+  },
+
   async findPrice(db: Db, cityId: string, serviceId: string, vehicleType: VehicleType) {
     return check(
       await db

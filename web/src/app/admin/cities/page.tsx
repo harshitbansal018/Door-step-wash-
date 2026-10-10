@@ -1,221 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { MapPin, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Loader2, MapPin, Plus, Trash2 } from "lucide-react";
+import { api } from "@/lib/api";
+import type { Area, City } from "@/lib/domain";
+import { formatMoney } from "@/lib/utils";
+import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Toggle } from "@/components/ui";
-import { CITIES, WORKERS, type City } from "@/lib/data";
-import { formatDate, formatMoney } from "@/lib/utils";
 
 export default function AdminCitiesPage() {
-  const [cities, setCities] = useState<City[]>(CITIES);
-  const [adding, setAdding] = useState(false);
-  const [areaFor, setAreaFor] = useState<City | null>(null);
-  const [form, setForm] = useState({ name: "", state: "", launchDate: "" });
-  const [areaForm, setAreaForm] = useState({ name: "", pincodes: "", extraCharge: "0" });
-
-  const update = (id: string, fn: (c: City) => City) => setCities((cs) => cs.map((c) => (c.id === id ? fn(c) : c)));
-
-  return (
-    <>
-      <PageHeader
-        title="Cities & areas"
-        description="Bookings are only accepted in active cities, inside active service areas."
-        action={
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="size-4" /> Add city
-          </Button>
-        }
-      />
-
-      <div className="space-y-6">
-        {cities.map((c) => {
-          const workers = WORKERS.filter((w) => w.cityId === c.id && w.status === "active").length;
-          return (
-            <Card key={c.id} className="overflow-hidden">
-              <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                    <MapPin className="size-5" />
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold text-slate-900">{c.name}</h2>
-                      {c.isActive ? <Badge tone="green">Live</Badge> : <Badge tone="amber">Inactive</Badge>}
-                    </div>
-                    <p className="text-sm text-slate-500">
-                      {c.state} · {c.areas.length} areas · {workers} active workers · launch {formatDate(c.launchDate)}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-slate-700">{c.isActive ? "Accepting bookings" : "Bookings off"}</span>
-                  <Toggle
-                    checked={c.isActive}
-                    onChange={(v) => update(c.id, (x) => ({ ...x, isActive: v }))}
-                    label={`Toggle ${c.name}`}
-                  />
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <tr>
-                      <th className="px-5 py-2.5">Area</th>
-                      <th className="px-5 py-2.5">Pincodes</th>
-                      <th className="px-5 py-2.5">Travel charge</th>
-                      <th className="px-5 py-2.5">Active</th>
-                      <th className="px-5 py-2.5" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {c.areas.map((a) => (
-                      <tr key={a.id}>
-                        <td className="px-5 py-3 font-medium text-slate-900">{a.name}</td>
-                        <td className="px-5 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {a.pincodes.map((p) => (
-                              <span key={p} className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-700">
-                                {p}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-slate-700">{a.extraCharge ? formatMoney(a.extraCharge) : "None"}</td>
-                        <td className="px-5 py-3">
-                          <Toggle
-                            checked={a.isActive}
-                            onChange={(v) =>
-                              update(c.id, (x) => ({
-                                ...x,
-                                areas: x.areas.map((y) => (y.id === a.id ? { ...y, isActive: v } : y)),
-                              }))
-                            }
-                            label={`Toggle ${a.name}`}
-                          />
-                        </td>
-                        <td className="px-5 py-3 text-right">
-                          <button
-                            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                            aria-label={`Remove ${a.name}`}
-                            onClick={() => update(c.id, (x) => ({ ...x, areas: x.areas.filter((y) => y.id !== a.id) }))}
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="border-t border-slate-100 px-5 py-3">
-                <button onClick={() => setAreaFor(c)} className="flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
-                  <Plus className="size-4" /> Add service area
-                </button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Modal
-        open={adding}
-        onClose={() => setAdding(false)}
-        title="Add a city"
-        description="New cities start inactive. Add areas, prices and workers, then switch it on."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setAdding(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!form.name || !form.state}
-              onClick={() => {
-                setCities((cs) => [
-                  ...cs,
-                  {
-                    id: form.name.toLowerCase().replace(/\s+/g, "-"),
-                    name: form.name,
-                    state: form.state,
-                    isActive: false,
-                    launchDate: form.launchDate || new Date().toISOString().slice(0, 10),
-                    areas: [],
-                  },
-                ]);
-                setForm({ name: "", state: "", launchDate: "" });
-                setAdding(false);
-              }}
-            >
-              Add city
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="city-name">City name</Label>
-            <Input id="city-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Bengaluru" />
-          </div>
-          <div>
-            <Label htmlFor="city-state">State</Label>
-            <Input id="city-state" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} placeholder="e.g. Karnataka" />
-          </div>
-          <div>
-            <Label htmlFor="city-launch">Planned launch date</Label>
-            <Input id="city-launch" type="date" value={form.launchDate} onChange={(e) => setForm({ ...form, launchDate: e.target.value })} />
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        open={!!areaFor}
-        onClose={() => setAreaFor(null)}
-        title={`Add area in ${areaFor?.name ?? ""}`}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setAreaFor(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={!areaForm.name || !areaForm.pincodes}
-              onClick={() => {
-                if (!areaFor) return;
-                update(areaFor.id, (x) => ({
-                  ...x,
-                  areas: [
-                    ...x.areas,
-                    {
-                      id: `${x.id}-${Date.now()}`,
-                      name: areaForm.name,
-                      pincodes: areaForm.pincodes.split(/[\s,]+/).filter(Boolean),
-                      isActive: true,
-                      extraCharge: Number(areaForm.extraCharge) || 0,
-                    },
-                  ],
-                }));
-                setAreaForm({ name: "", pincodes: "", extraCharge: "0" });
-                setAreaFor(null);
-              }}
-            >
-              Add area
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="area-name">Area name</Label>
-            <Input id="area-name" value={areaForm.name} onChange={(e) => setAreaForm({ ...areaForm, name: e.target.value })} placeholder="e.g. Golf Course Road" />
-          </div>
-          <div>
-            <Label htmlFor="area-pins">Pincodes</Label>
-            <Input id="area-pins" value={areaForm.pincodes} onChange={(e) => setAreaForm({ ...areaForm, pincodes: e.target.value })} placeholder="122002, 122011" />
-          </div>
-          <div>
-            <Label htmlFor="area-charge">Travel charge (₹)</Label>
-            <Input id="area-charge" type="number" min={0} value={areaForm.extraCharge} onChange={(e) => setAreaForm({ ...areaForm, extraCharge: e.target.value })} />
-          </div>
-        </div>
-      </Modal>
-    </>
-  );
+  const [cities, setCities] = useState<City[]>([]); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const [addingCity, setAddingCity] = useState(false); const [areaCity, setAreaCity] = useState<City | null>(null);
+  const [cityForm, setCityForm] = useState({ name: "", state: "", openTime: "08:00", closeTime: "18:00", slotMinutes: "60", cancellationWindowMinutes: "120" });
+  const [areaForm, setAreaForm] = useState({ name: "", extraCharge: "0", pincodes: "" });
+  const load = useCallback(async () => { setLoading(true); setError(""); try { setCities(await api<City[]>("/api/admin/cities")); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load cities."); } finally { setLoading(false); } }, []);
+  useEffect(() => { void load(); }, [load]);
+  async function createCity() { setSaving(true); try { await api("/api/admin/cities", { method: "POST", body: { ...cityForm, slotMinutes: Number(cityForm.slotMinutes), cancellationWindowMinutes: Number(cityForm.cancellationWindowMinutes) } }); setAddingCity(false); setCityForm({ ...cityForm, name: "", state: "" }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create city."); } finally { setSaving(false); } }
+  async function createArea() { if (!areaCity) return; setSaving(true); try { await api(`/api/admin/cities/${areaCity.id}/areas`, { method: "POST", body: { name: areaForm.name, extraCharge: Number(areaForm.extraCharge), pincodes: areaForm.pincodes.split(/[,\s]+/).filter(Boolean) } }); setAreaCity(null); setAreaForm({ name: "", extraCharge: "0", pincodes: "" }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create area."); } finally { setSaving(false); } }
+  async function toggleCity(city: City, isActive: boolean) { try { await api(`/api/admin/cities/${city.id}`, { method: "PATCH", body: { isActive } }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update city."); } }
+  async function toggleArea(area: Area, isActive: boolean) { try { await api(`/api/admin/areas/${area.id}`, { method: "PATCH", body: { isActive } }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update area."); } }
+  async function deleteArea(area: Area) { if (!window.confirm(`Delete ${area.name}? Areas with bookings cannot be deleted.`)) return; try { await api(`/api/admin/areas/${area.id}`, { method: "DELETE" }); await load(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not delete area."); } }
+  return <>
+    <PageHeader title="Cities & service areas" description="Control coverage, pincodes and launch status." action={<Button onClick={() => setAddingCity(true)}><Plus className="size-4" />Add city</Button>} />
+    {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+    {loading ? <LoadingState /> : !cities.length ? <EmptyState title="No cities" description="Create a city and add service areas to start accepting bookings." /> : <div className="space-y-5">{cities.map((city) => <Card key={city.id} className="overflow-hidden"><div className="flex items-center justify-between border-b p-5"><div><div className="flex items-center gap-2"><h2 className="font-semibold">{city.name}, {city.state}</h2><Badge tone={city.is_active ? "green" : "slate"}>{city.is_active ? "Booking open" : "Inactive"}</Badge></div><p className="mt-1 text-xs text-slate-500">{city.open_time.slice(0,5)}–{city.close_time.slice(0,5)} · {city.slot_minutes}-minute slots</p></div><div className="flex items-center gap-3"><Button size="sm" variant="secondary" onClick={() => setAreaCity(city)}><Plus className="size-4" />Area</Button><Toggle checked={city.is_active} onChange={(value) => toggleCity(city, value)} label={`Toggle ${city.name}`} /></div></div><div className="divide-y">{city.areas.map((area) => <div key={area.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="flex items-center gap-2 font-medium"><MapPin className="size-4 text-brand-600" />{area.name}</p><p className="mt-1 text-xs text-slate-500">{area.pincodes.join(", ")} · travel charge {formatMoney(area.extra_charge)}</p></div><div className="flex items-center gap-3"><Badge tone={area.is_active ? "green" : "slate"}>{area.is_active ? "Active" : "Inactive"}</Badge><Toggle checked={area.is_active} onChange={(value) => toggleArea(area, value)} label={`Toggle ${area.name}`} /><Button size="sm" variant="ghost" onClick={() => deleteArea(area)}><Trash2 className="size-4 text-red-600" /></Button></div></div>)}{!city.areas.length && <p className="p-5 text-sm text-slate-500">No areas yet.</p>}</div></Card>)}</div>}
+    {!loading && error && !cities.length && <ErrorState message={error} retry={load} />}
+    <Modal open={addingCity} onClose={() => setAddingCity(false)} title="Add city" footer={<><Button variant="secondary" onClick={() => setAddingCity(false)}>Cancel</Button><Button disabled={saving || cityForm.name.length < 2 || cityForm.state.length < 2} onClick={createCity}>{saving && <Loader2 className="size-4 animate-spin" />}Create city</Button></>}><div className="grid gap-4 sm:grid-cols-2"><div><Label htmlFor="city-name">City</Label><Input id="city-name" value={cityForm.name} onChange={(event) => setCityForm({ ...cityForm, name: event.target.value })} /></div><div><Label htmlFor="state">State</Label><Input id="state" value={cityForm.state} onChange={(event) => setCityForm({ ...cityForm, state: event.target.value })} /></div><div><Label htmlFor="open">Open time</Label><Input id="open" type="time" value={cityForm.openTime} onChange={(event) => setCityForm({ ...cityForm, openTime: event.target.value })} /></div><div><Label htmlFor="close">Close time</Label><Input id="close" type="time" value={cityForm.closeTime} onChange={(event) => setCityForm({ ...cityForm, closeTime: event.target.value })} /></div><div><Label htmlFor="slot-minutes">Slot minutes</Label><Input id="slot-minutes" type="number" value={cityForm.slotMinutes} onChange={(event) => setCityForm({ ...cityForm, slotMinutes: event.target.value })} /></div><div><Label htmlFor="cancel-window">Cancellation window (minutes)</Label><Input id="cancel-window" type="number" value={cityForm.cancellationWindowMinutes} onChange={(event) => setCityForm({ ...cityForm, cancellationWindowMinutes: event.target.value })} /></div></div></Modal>
+    <Modal open={!!areaCity} onClose={() => setAreaCity(null)} title={`Add area to ${areaCity?.name ?? "city"}`} footer={<><Button variant="secondary" onClick={() => setAreaCity(null)}>Cancel</Button><Button disabled={saving || areaForm.name.length < 2 || !areaForm.pincodes.trim()} onClick={createArea}>{saving && <Loader2 className="size-4 animate-spin" />}Create area</Button></>}><div className="space-y-4"><div><Label htmlFor="area-name">Area name</Label><Input id="area-name" value={areaForm.name} onChange={(event) => setAreaForm({ ...areaForm, name: event.target.value })} /></div><div><Label htmlFor="pincodes">Pincodes (comma or space separated)</Label><Input id="pincodes" value={areaForm.pincodes} onChange={(event) => setAreaForm({ ...areaForm, pincodes: event.target.value.replace(/[^0-9,\s]/g, "") })} /></div><div><Label htmlFor="charge">Extra charge</Label><Input id="charge" type="number" min="0" value={areaForm.extraCharge} onChange={(event) => setAreaForm({ ...areaForm, extraCharge: event.target.value })} /></div></div></Modal>
+  </>;
 }

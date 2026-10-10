@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Droplets } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { BRAND } from "@/lib/config";
-import { STATUS_META, type BookingStatus, type Tone } from "@/lib/data";
+import { STATUS_META, type BookingStatus, type Tone } from "@/lib/domain";
 import { cn, initials } from "@/lib/utils";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "dark";
@@ -10,12 +10,12 @@ type Size = "sm" | "md" | "lg";
 
 const variantClass: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:outline-brand-600 disabled:bg-brand-300",
+    "bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25 active:translate-y-0 focus-visible:outline-brand-600 disabled:translate-y-0 disabled:bg-brand-300 disabled:shadow-none",
   secondary:
-    "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 shadow-sm hover:bg-slate-50 disabled:text-slate-400",
-  ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-  danger: "bg-red-600 text-white shadow-sm hover:bg-red-700",
-  dark: "bg-slate-900 text-white shadow-sm hover:bg-slate-800",
+    "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md active:translate-y-0 disabled:translate-y-0 disabled:text-slate-400",
+  ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:scale-[.98]",
+  danger: "bg-red-600 text-white shadow-sm hover:-translate-y-0.5 hover:bg-red-700 active:translate-y-0",
+  dark: "bg-slate-900 text-white shadow-sm hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0",
 };
 
 const sizeClass: Record<Size, string> = {
@@ -32,7 +32,7 @@ type ButtonProps = {
 
 export function Button({ variant = "primary", size = "md", href, className, children, ...props }: ButtonProps) {
   const classes = cn(
-    "inline-flex items-center justify-center rounded-lg font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed",
+    "inline-flex items-center justify-center rounded-lg font-semibold transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed",
     variantClass[variant],
     sizeClass[size],
     className,

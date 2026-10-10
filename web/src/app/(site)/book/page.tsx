@@ -1,5 +1,5 @@
 import { BookingWizard } from "@/components/site/booking-wizard";
-import type { VehicleType } from "@/lib/data";
+import type { VehicleType } from "@/lib/domain";
 
 export const metadata = { title: "Book a wash" };
 
