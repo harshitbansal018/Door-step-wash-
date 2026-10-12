@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Droplets } from "lucide-react";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import { BRAND } from "@/lib/config";
 import { STATUS_META, type BookingStatus, type Tone } from "@/lib/domain";
 import { cn, initials } from "@/lib/utils";
@@ -10,12 +10,12 @@ type Size = "sm" | "md" | "lg";
 
 const variantClass: Record<Variant, string> = {
   primary:
-    "bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/25 active:translate-y-0 focus-visible:outline-brand-600 disabled:translate-y-0 disabled:bg-brand-300 disabled:shadow-none",
+    "btn-shine bg-brand-600 text-white shadow-sm shadow-brand-600/20 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg hover:shadow-brand-600/30 active:translate-y-0 active:scale-[.98] focus-visible:outline-brand-600 disabled:translate-y-0 disabled:bg-brand-300 disabled:shadow-none",
   secondary:
-    "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-md active:translate-y-0 disabled:translate-y-0 disabled:text-slate-400",
+    "bg-white text-slate-700 ring-1 ring-inset ring-slate-300 shadow-sm hover:-translate-y-0.5 hover:bg-slate-50 hover:ring-slate-400 hover:shadow-md active:translate-y-0 active:scale-[.98] disabled:translate-y-0 disabled:text-slate-400",
   ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900 active:scale-[.98]",
-  danger: "bg-red-600 text-white shadow-sm hover:-translate-y-0.5 hover:bg-red-700 active:translate-y-0",
-  dark: "bg-slate-900 text-white shadow-sm hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0",
+  danger: "bg-red-600 text-white shadow-sm hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/25 active:translate-y-0 active:scale-[.98]",
+  dark: "btn-shine bg-slate-900 text-white shadow-sm hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-lg hover:shadow-slate-900/25 active:translate-y-0 active:scale-[.98]",
 };
 
 const sizeClass: Record<Size, string> = {
@@ -85,10 +85,34 @@ export function StatusBadge({ status }: { status: BookingStatus }) {
   );
 }
 
-export function Card({ className, children }: { className?: string; children: ReactNode }) {
+export function Card({
+  className,
+  children,
+  hover = false,
+  style,
+}: {
+  className?: string;
+  children: ReactNode;
+  hover?: boolean;
+  style?: CSSProperties;
+}) {
   return (
-    <div className={cn("rounded-xl bg-white ring-1 ring-slate-200 shadow-sm", className)}>{children}</div>
+    <div
+      style={style}
+      className={cn(
+        "rounded-xl bg-white ring-1 ring-slate-200 shadow-sm",
+        hover && "transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/5 hover:ring-brand-200",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
+}
+
+/** Shimmering placeholder block used while content loads. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden className={cn("skeleton h-4 w-full", className)} />;
 }
 
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
@@ -107,7 +131,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "block h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600 focus:outline-none",
+        "block h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 transition-[box-shadow,background-color] duration-200 placeholder:text-slate-400 hover:ring-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600 focus:shadow-[0_0_0_4px_rgb(37_99_235/0.12)] focus:outline-none",
         className,
       )}
       {...props}
@@ -119,7 +143,7 @@ export function Select({ className, children, ...props }: ComponentProps<"select
   return (
     <select
       className={cn(
-        "block h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-inset focus:ring-brand-600 focus:outline-none",
+        "block h-10 w-full rounded-lg border-0 bg-white px-3 text-sm text-slate-900 ring-1 ring-inset ring-slate-300 transition-[box-shadow] duration-200 hover:ring-slate-400 focus:ring-2 focus:ring-inset focus:ring-brand-600 focus:shadow-[0_0_0_4px_rgb(37_99_235/0.12)] focus:outline-none",
         className,
       )}
       {...props}
@@ -228,10 +252,10 @@ export function StatCard({
   icon: ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card hover className="group p-5">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-slate-500">{label}</p>
-        <span className="flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600">{icon}</span>
+        <span className="icon-tile flex size-9 items-center justify-center rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-600 group-hover:text-white group-hover:shadow-md group-hover:shadow-brand-600/25">{icon}</span>
       </div>
       <p className="mt-3 text-2xl font-bold tracking-tight text-slate-900">{value}</p>
       {change && (
@@ -261,12 +285,12 @@ export function Modal({
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="modal-backdrop absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        className="modal-panel scroll-slim relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl shadow-slate-950/20 ring-1 ring-slate-900/5 sm:rounded-2xl"
       >
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>

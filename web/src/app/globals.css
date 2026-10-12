@@ -17,6 +17,10 @@
   --color-brand-800: #1e40af;
   --color-brand-900: #1e3a8a;
   --color-brand-950: #172554;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 body {
@@ -30,7 +34,116 @@ body {
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
+
+/* ------------------------------------------------------------------ */
+/* Scrollbars                                                          */
+/* Thin, rounded, brand-blue thumb. WebKit gets the full styling;     */
+/* Firefox uses scrollbar-color / scrollbar-width.                     */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #93c5fd;
+  --scrollbar-thumb-hover: #2563eb;
+  --scrollbar-size: 10px;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+  background: linear-gradient(180deg, var(--scrollbar-thumb), #60a5fa);
+  background-clip: padding-box;
+  transition: background 200ms ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--scrollbar-thumb-hover), #0891b2);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
+/* Scrollable areas sitting on dark surfaces (admin sidebar, dark panels). */
+.scroll-dark {
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: rgb(96 165 250 / 0.5);
+  --scrollbar-thumb-hover: #60a5fa;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+/* Compact scrollbar for inline overflow areas such as date strips and tables. */
+.scroll-slim {
+  --scrollbar-size: 6px;
+  scrollbar-width: thin;
+}
+
+.scroll-slim::-webkit-scrollbar-thumb {
+  border-width: 1px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll reveal                                                       */
+/* Elements with .reveal are hidden only once the inline script in the */
+/* root layout has set html[data-motion]; otherwise they stay visible. */
+/* ------------------------------------------------------------------ */
+
+.reveal {
+  --reveal-duration: 760ms;
+  --reveal-delay: 0ms;
+  --reveal-distance: 28px;
+}
+
+html[data-motion] .reveal {
+  opacity: 0;
+  transition:
+    opacity var(--reveal-duration) var(--ease-out-expo) var(--reveal-delay),
+    transform var(--reveal-duration) var(--ease-out-expo) var(--reveal-delay),
+    filter var(--reveal-duration) var(--ease-out-expo) var(--reveal-delay);
+  will-change: opacity, transform;
+}
+
+html[data-motion] .reveal[data-reveal="up"] { transform: translate3d(0, var(--reveal-distance), 0); }
+html[data-motion] .reveal[data-reveal="down"] { transform: translate3d(0, calc(var(--reveal-distance) * -1), 0); }
+html[data-motion] .reveal[data-reveal="left"] { transform: translate3d(calc(var(--reveal-distance) * -1.4), 0, 0); }
+html[data-motion] .reveal[data-reveal="right"] { transform: translate3d(calc(var(--reveal-distance) * 1.4), 0, 0); }
+html[data-motion] .reveal[data-reveal="scale"] { transform: scale(0.92); }
+html[data-motion] .reveal[data-reveal="fade"] { transform: none; }
+html[data-motion] .reveal[data-reveal="blur"] { transform: translate3d(0, 12px, 0); filter: blur(10px); }
+html[data-motion] .reveal[data-reveal="flip"] { transform: perspective(1000px) rotateX(-12deg) translate3d(0, 18px, 0); transform-origin: top; }
+
+html[data-motion] .reveal[data-inview="true"] {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Backgrounds and decorative effects                                  */
+/* ------------------------------------------------------------------ */
 
 .hero-grid {
   background-image:
@@ -38,6 +151,12 @@ html {
     linear-gradient(to bottom, rgb(37 99 235 / 0.055) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: linear-gradient(to bottom, black, transparent 88%);
+}
+
+.dot-grid {
+  background-image: radial-gradient(rgb(255 255 255 / 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
 
 .text-gradient {
@@ -50,7 +169,11 @@ html {
 }
 
 .interactive-card {
-  transition: transform 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+  transition:
+    transform 400ms var(--ease-out-expo),
+    box-shadow 400ms var(--ease-out-expo),
+    border-color 300ms ease,
+    background-color 300ms ease;
 }
 
 .interactive-card:hover {
@@ -59,13 +182,42 @@ html {
   box-shadow: 0 24px 48px -24px rgb(15 23 42 / 0.28);
 }
 
+/* Pointer-following radial highlight (see SpotlightCard). */
+.spotlight {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), var(--spot, rgb(37 99 235 / 0.14)), transparent 55%);
+  transition: opacity 400ms ease;
+}
+
+.spotlight:hover::before {
+  opacity: 1;
+}
+
+/* Pointer-following 3D tilt (see Tilt). */
+.tilt {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  transform: perspective(1200px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: transform 500ms var(--ease-out-expo);
+  transform-style: preserve-3d;
+}
+
 .hero-console {
-  transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
-  transition: transform 500ms cubic-bezier(.2,.8,.2,1), box-shadow 500ms ease;
+  transition: box-shadow 500ms ease;
 }
 
 .hero-console:hover {
-  transform: perspective(1200px) rotateY(0deg) rotateX(0deg) translateY(-4px);
   box-shadow: 0 36px 80px -28px rgb(30 64 175 / 0.45);
 }
 
@@ -79,17 +231,319 @@ html {
   animation: sheen 7s ease-in-out infinite;
 }
 
+/* Animated conic border glow for highlighted cards. */
+.glow-ring {
+  position: relative;
+}
+
+.glow-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(from var(--glow-angle, 0deg), #2563eb, #06b6d4, #8b5cf6, #2563eb);
+  animation: glow-spin 6s linear infinite;
+  opacity: 0.9;
+}
+
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Primary button sheen on hover. */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0s;
+}
+
+.btn-shine:hover::after {
+  transform: translateX(120%);
+  transition: transform 700ms var(--ease-out-expo);
+}
+
+/* Link underline that grows from the left. */
+.link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 300ms var(--ease-out-expo);
+}
+
+.link-underline:hover {
+  background-size: 100% 1px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero background (see components/site/hero-background.tsx)           */
+/* ------------------------------------------------------------------ */
+
+.aurora {
+  filter: blur(70px);
+  mix-blend-mode: multiply;
+  will-change: transform;
+}
+
+.hero-bg-dark .aurora {
+  mix-blend-mode: screen;
+}
+
+.aurora-1 { animation: aurora-a 22s ease-in-out infinite; }
+.aurora-2 { animation: aurora-b 26s ease-in-out infinite; }
+.aurora-3 { animation: aurora-c 30s ease-in-out infinite; }
+.aurora-4 { animation: aurora-d 18s ease-in-out infinite; filter: blur(50px); }
+
+.hero-glow {
+  --gx: 65%;
+  --gy: 40%;
+  opacity: 0;
+  background: radial-gradient(42rem circle at var(--gx) var(--gy), rgb(59 130 246 / 0.16), transparent 60%);
+  transition: opacity 600ms ease;
+}
+
+.hero-bg-dark .hero-glow {
+  background: radial-gradient(42rem circle at var(--gx) var(--gy), rgb(96 165 250 / 0.18), transparent 60%);
+}
+
+.hero-bg[data-glow="true"] .hero-glow {
+  opacity: 1;
+}
+
+.bubble {
+  opacity: 0;
+  animation-name: bubble-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.bubble-light {
+  background: radial-gradient(circle at 32% 30%, rgb(255 255 255 / 0.95) 0%, rgb(191 219 254 / 0.55) 40%, rgb(59 130 246 / 0.12) 70%, transparent 72%);
+  box-shadow:
+    inset 0 0 0 1px rgb(59 130 246 / 0.18),
+    0 2px 10px rgb(37 99 235 / 0.08);
+}
+
+.bubble-dark {
+  background: radial-gradient(circle at 32% 30%, rgb(255 255 255 / 0.7) 0%, rgb(147 197 253 / 0.3) 40%, rgb(59 130 246 / 0.1) 70%, transparent 72%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18);
+}
+
+.rays {
+  background:
+    linear-gradient(118deg, transparent 38%, rgb(255 255 255 / 0.55) 47%, transparent 52%),
+    linear-gradient(118deg, transparent 58%, rgb(255 255 255 / 0.35) 66%, transparent 70%);
+  background-size: 200% 100%;
+  mix-blend-mode: soft-light;
+  animation: rays-sweep 16s ease-in-out infinite;
+}
+
+.wave {
+  will-change: transform;
+}
+
+.wave-back {
+  animation: wave-drift 18s linear infinite;
+  opacity: 0.8;
+}
+
+.wave-front {
+  animation: wave-drift 11s linear infinite reverse;
+}
+
+@keyframes aurora-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(-8%, 10%, 0) scale(1.12); }
+  66% { transform: translate3d(4%, -6%, 0) scale(0.94); }
+}
+
+@keyframes aurora-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40% { transform: translate3d(14%, -12%, 0) scale(1.18); }
+  70% { transform: translate3d(-6%, 8%, 0) scale(0.92); }
+}
+
+@keyframes aurora-c {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate3d(-12%, -10%, 0) scale(1.15) rotate(12deg); }
+}
+
+@keyframes aurora-d {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.9); opacity: 0.6; }
+  50% { transform: translate3d(10%, 14%, 0) scale(1.3); opacity: 1; }
+}
+
+@keyframes bubble-rise {
+  0% { transform: translate3d(0, 10vh, 0) scale(0.6); opacity: 0; }
+  8% { opacity: 1; }
+  50% { transform: translate3d(var(--sway, 16px), -45vh, 0) scale(1); }
+  92% { opacity: 0.9; }
+  100% { transform: translate3d(calc(var(--sway, 16px) * -0.6), -105vh, 0) scale(1.15); opacity: 0; }
+}
+
+@keyframes rays-sweep {
+  0%, 100% { background-position: 0% 0%; opacity: 0.5; }
+  50% { background-position: 100% 0%; opacity: 1; }
+}
+
+@keyframes wave-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Entrances                                                           */
+/* ------------------------------------------------------------------ */
+
 .hero-enter {
-  animation: hero-in 700ms cubic-bezier(.2,.8,.2,1) both;
+  animation: hero-in 800ms var(--ease-out-expo) both;
 }
 
 .hero-enter-delayed {
-  animation: hero-in 800ms 120ms cubic-bezier(.2,.8,.2,1) both;
+  animation: hero-in 900ms 140ms var(--ease-out-expo) both;
+}
+
+/* Children of .hero-stagger cascade in; up to 8 children. */
+.hero-stagger > * {
+  animation: hero-in 800ms var(--ease-out-expo) both;
+}
+.hero-stagger > :nth-child(1) { animation-delay: 40ms; }
+.hero-stagger > :nth-child(2) { animation-delay: 140ms; }
+.hero-stagger > :nth-child(3) { animation-delay: 240ms; }
+.hero-stagger > :nth-child(4) { animation-delay: 340ms; }
+.hero-stagger > :nth-child(5) { animation-delay: 440ms; }
+.hero-stagger > :nth-child(6) { animation-delay: 540ms; }
+.hero-stagger > :nth-child(7) { animation-delay: 640ms; }
+.hero-stagger > :nth-child(8) { animation-delay: 740ms; }
+
+/* Route transitions (see (site)/template.tsx). */
+.page-enter {
+  animation: page-in 520ms var(--ease-out-expo) both;
 }
 
 .menu-enter {
   transform-origin: top;
-  animation: menu-in 180ms ease-out both;
+  animation: menu-in 220ms var(--ease-out-expo) both;
+}
+
+.menu-enter > * > * {
+  animation: hero-in 360ms var(--ease-out-expo) both;
+}
+.menu-enter > * > :nth-child(1) { animation-delay: 30ms; }
+.menu-enter > * > :nth-child(2) { animation-delay: 60ms; }
+.menu-enter > * > :nth-child(3) { animation-delay: 90ms; }
+.menu-enter > * > :nth-child(4) { animation-delay: 120ms; }
+.menu-enter > * > :nth-child(5) { animation-delay: 150ms; }
+.menu-enter > * > :nth-child(6) { animation-delay: 180ms; }
+
+/* Wizard / tab content switches. */
+.step-enter {
+  animation: step-in 420ms var(--ease-out-expo) both;
+}
+
+.step-enter-back {
+  animation: step-in-back 420ms var(--ease-out-expo) both;
+}
+
+/* Modal. */
+.modal-backdrop {
+  animation: fade-in 220ms ease-out both;
+}
+
+.modal-panel {
+  animation: modal-in 360ms var(--ease-out-expo) both;
+}
+
+@media (max-width: 639px) {
+  .modal-panel {
+    animation-name: sheet-in;
+  }
+}
+
+/* Success check-mark pop. */
+.check-pop {
+  animation: pop 600ms var(--ease-spring) both;
+}
+
+.check-ring {
+  animation: ring-out 1.4s ease-out 200ms both;
+}
+
+/* Horizontal ticker. */
+.marquee {
+  display: flex;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.marquee-track {
+  display: flex;
+  flex-shrink: 0;
+  min-width: 100%;
+  gap: 2.5rem;
+  padding-right: 2.5rem;
+  animation: marquee 38s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Skeleton loading shimmer. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(226 232 240 / 0.7);
+  border-radius: 0.5rem;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.7), transparent);
+  animation: shimmer 1.6s infinite;
+}
+
+/* Progress bar fill used in dashboards. */
+.bar-grow {
+  transform-origin: left;
+  animation: bar-in 900ms var(--ease-out-expo) both;
+}
+
+/* Accordion content fades in when opened. */
+details > *:not(summary) {
+  animation: details-in 320ms var(--ease-out-expo) both;
+}
+
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Navbar grows a shadow once the page has been scrolled. */
+.site-header {
+  transition:
+    box-shadow 300ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease;
+}
+
+.site-header[data-scrolled="true"] {
+  box-shadow: 0 10px 30px -18px rgb(15 23 42 / 0.25);
 }
 
 .float-slow {
@@ -100,14 +554,96 @@ html {
   animation: float 11s ease-in-out infinite reverse;
 }
 
+.drift {
+  animation: drift 14s ease-in-out infinite;
+}
+
+.pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+/* Hover-animated icon badge used in feature lists. */
+.icon-tile {
+  transition:
+    transform 400ms var(--ease-spring),
+    background-color 300ms ease,
+    color 300ms ease,
+    box-shadow 300ms ease;
+}
+
+.group:hover .icon-tile {
+  transform: translateY(-2px) rotate(-6deg) scale(1.08);
+}
+
+/* ------------------------------------------------------------------ */
+/* Keyframes                                                           */
+/* ------------------------------------------------------------------ */
+
 @keyframes hero-in {
   from { opacity: 0; transform: translateY(22px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes step-in {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes step-in-back {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes details-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ring-out {
+  from { opacity: 0.7; transform: scale(0.6); }
+  to { opacity: 0; transform: scale(1.9); }
+}
+
 @keyframes float {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(0, 18px, 0) scale(1.04); }
+}
+
+@keyframes drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  33% { transform: translate3d(24px, -18px, 0) rotate(4deg); }
+  66% { transform: translate3d(-18px, 14px, 0) rotate(-3deg); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(37 99 235 / 0.35); }
+  60% { box-shadow: 0 0 0 12px rgb(37 99 235 / 0); }
 }
 
 @keyframes gradient-shift {
@@ -120,10 +656,32 @@ html {
   78%, 100% { transform: translateX(100%); }
 }
 
+@keyframes glow-spin {
+  to { --glow-angle: 360deg; }
+}
+
 @keyframes menu-in {
   from { opacity: 0; transform: translateY(-8px) scaleY(.98); }
   to { opacity: 1; transform: translateY(0) scaleY(1); }
 }
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+@keyframes bar-in {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Reduced motion                                                      */
+/* ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -133,7 +691,11 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
-  .hero-console,
-  .hero-console:hover,
+  html[data-motion] .reveal { opacity: 1; transform: none; filter: none; }
+  .tilt,
   .interactive-card:hover { transform: none; }
+  .marquee-track { animation: none; }
+  .bubble { display: none; }
+  .aurora, .rays, .wave { animation: none; }
+  .hero-glow { display: none; }
 }

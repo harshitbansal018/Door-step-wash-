@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
+import { Reveal } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
 const faqs = [
@@ -22,16 +23,17 @@ export function FaqExplorer() {
   const [category, setCategory] = useState<(typeof categories)[number]>("All");
   const [query, setQuery] = useState("");
   const normalized = query.trim().toLowerCase();
-  const visible = faqs.filter((item) =>
-    (category === "All" || item.category === category) &&
-    (!normalized || `${item.q} ${item.a}`.toLowerCase().includes(normalized)),
+  const visible = faqs.filter(
+    (item) =>
+      (category === "All" || item.category === category) &&
+      (!normalized || `${item.q} ${item.a}`.toLowerCase().includes(normalized)),
   );
 
   return (
     <div>
-      <div className="mx-auto max-w-xl">
-        <label className="group flex items-center gap-3 rounded-2xl bg-white px-4 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 transition focus-within:ring-2 focus-within:ring-brand-500">
-          <Search className="size-5 text-slate-400 group-focus-within:text-brand-600" />
+      <Reveal variant="scale" className="mx-auto max-w-xl">
+        <label className="group flex items-center gap-3 rounded-2xl bg-white px-4 shadow-lg shadow-slate-900/5 ring-1 ring-slate-200 transition-all duration-300 focus-within:-translate-y-0.5 focus-within:shadow-xl focus-within:shadow-brand-600/10 focus-within:ring-2 focus-within:ring-brand-500">
+          <Search className="size-5 text-slate-400 transition-colors group-focus-within:text-brand-600" />
           <span className="sr-only">Search questions</span>
           <input
             value={query}
@@ -39,34 +41,50 @@ export function FaqExplorer() {
             placeholder="Search a question…"
             className="h-14 w-full bg-transparent text-sm font-medium outline-none placeholder:text-slate-400"
           />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+              className="check-pop flex size-7 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
         </label>
-      </div>
+      </Reveal>
 
-      <div className="mt-6 flex flex-wrap justify-center gap-2" aria-label="FAQ categories">
+      <Reveal variant="up" delay={120} className="mt-6 flex flex-wrap justify-center gap-2">
         {categories.map((item) => (
           <button
             key={item}
             type="button"
             onClick={() => setCategory(item)}
             className={cn(
-              "rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200",
-              category === item ? "bg-slate-950 text-white shadow-lg" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:-translate-y-0.5 hover:text-slate-950",
+              "rounded-full px-4 py-2 text-sm font-semibold transition-all duration-300",
+              category === item
+                ? "scale-105 bg-slate-950 text-white shadow-lg shadow-slate-950/20"
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:-translate-y-0.5 hover:text-slate-950 hover:shadow-md",
             )}
           >
             {item}
           </button>
         ))}
-      </div>
+      </Reveal>
 
-      <div className="mx-auto mt-10 max-w-3xl divide-y divide-slate-200 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-900/5 ring-1 ring-slate-200">
-        {visible.map((item) => (
-          <details key={item.q} className="group p-6 transition-colors open:bg-brand-50/50 hover:bg-slate-50">
+      <Reveal variant="up" delay={220} className="mx-auto mt-10 max-w-3xl divide-y divide-slate-200 overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-900/5 ring-1 ring-slate-200">
+        {visible.map((item, index) => (
+          <details
+            key={item.q}
+            className="group step-enter p-6 transition-colors duration-300 open:bg-brand-50/50 hover:bg-slate-50"
+            style={{ animationDelay: `${index * 40}ms` }}
+          >
             <summary className="flex cursor-pointer list-none items-center justify-between gap-5 font-semibold text-slate-950">
               <span>
                 <span className="mb-1 block text-[10px] font-bold tracking-[0.14em] text-brand-600 uppercase">{item.category}</span>
                 {item.q}
               </span>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all group-open:rotate-180 group-open:bg-brand-600 group-open:text-white">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all duration-300 group-hover:bg-slate-200 group-open:rotate-180 group-open:bg-brand-600 group-open:text-white">
                 <ChevronDown className="size-4" />
               </span>
             </summary>
@@ -74,12 +92,12 @@ export function FaqExplorer() {
           </details>
         ))}
         {!visible.length && (
-          <div className="p-10 text-center">
+          <div className="step-enter p-10 text-center">
             <p className="font-semibold text-slate-900">No matching questions</p>
             <p className="mt-1 text-sm text-slate-500">Try a shorter search or choose another category.</p>
           </div>
         )}
-      </div>
+      </Reveal>
     </div>
   );
 }

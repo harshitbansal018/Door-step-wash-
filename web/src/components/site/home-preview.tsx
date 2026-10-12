@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Clock3, Droplets, MapPin, Navigation, ShieldCheck, Sparkles } from "lucide-react";
+import { Tilt } from "@/components/motion";
 import { cn } from "@/lib/utils";
 
 const stages = [
@@ -26,13 +27,15 @@ export function HomePreview() {
   const CurrentIcon = current.icon;
 
   return (
+    <Tilt max={5}>
     <div
       className="hero-console relative overflow-hidden rounded-[2rem] bg-slate-950 p-3 shadow-2xl shadow-blue-950/25 ring-1 ring-white/10 sm:p-5"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div aria-hidden className="absolute -top-24 -right-20 size-64 rounded-full bg-blue-500/20 blur-3xl" />
-      <div aria-hidden className="absolute -bottom-28 -left-20 size-64 rounded-full bg-cyan-400/15 blur-3xl" />
+      <div aria-hidden className="dot-grid absolute inset-0 opacity-70" />
+      <div aria-hidden className="drift absolute -top-24 -right-20 size-64 rounded-full bg-blue-500/20 blur-3xl" />
+      <div aria-hidden className="float-slow-reverse absolute -bottom-28 -left-20 size-64 rounded-full bg-cyan-400/15 blur-3xl" />
 
       <div className="relative flex items-center justify-between px-2 py-2 text-white">
         <div className="flex items-center gap-2.5">
@@ -52,12 +55,12 @@ export function HomePreview() {
 
       <div className="relative mt-3 rounded-[1.4rem] bg-white p-5 shadow-xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div key={active} className="step-enter">
             <p className="text-xs font-semibold text-brand-600">CURRENT STATUS</p>
             <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">{current.label}</h2>
             <p className="mt-1 text-sm text-slate-500">{current.detail}</p>
           </div>
-          <span className="flex size-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/25">
+          <span key={`icon-${active}`} className="check-pop flex size-12 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg shadow-brand-600/25">
             <CurrentIcon className="size-5" />
           </span>
         </div>
@@ -125,5 +128,6 @@ export function HomePreview() {
         Status updates, progress, and proof—together in your account.
       </p>
     </div>
+    </Tilt>
   );
 }
