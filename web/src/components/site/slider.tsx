@@ -1,7 +1,6 @@
 "use client";
 
 import { Children, useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -31,7 +30,7 @@ export function Slider({
   const trackRef = useRef<HTMLDivElement>(null);
   const regionRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(autoPlay > 0);
+  const playing = autoPlay > 0;
   const [hovered, setHovered] = useState(false);
   const [visible, setVisible] = useState(true);
   const [pageVisible, setPageVisible] = useState(true);
@@ -99,11 +98,6 @@ export function Slider({
       goTo(index - 1);
     }
   }
-
-  const controlClass = cn(
-    "flex size-11 items-center justify-center rounded-full shadow-lg ring-1 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:opacity-40",
-    dark ? "bg-white/10 text-white ring-white/15 hover:bg-white/20" : "bg-white text-slate-700 ring-slate-200 hover:text-brand-700",
-  );
 
   return (
     <div
@@ -174,24 +168,7 @@ export function Slider({
               {String(index + 1).padStart(2, "0")} / {String(count).padStart(2, "0")}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            {autoPlay > 0 && (
-              <button
-                type="button"
-                onClick={() => setPlaying((value) => !value)}
-                aria-label={playing ? "Pause autoplay" : "Resume autoplay"}
-                className={cn(controlClass, "size-9")}
-              >
-                {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
-              </button>
-            )}
-            <button type="button" onClick={() => goTo(index - 1)} aria-label="Previous slide" className={controlClass}>
-              <ChevronLeft className="size-5" />
-            </button>
-            <button type="button" onClick={() => goTo(index + 1)} aria-label="Next slide" className={controlClass}>
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
+          <p className={cn("hidden text-xs sm:block", dark ? "text-slate-500" : "text-slate-400")}>Swipe or use arrow keys</p>
         </div>
       )}
     </div>
