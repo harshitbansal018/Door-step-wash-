@@ -83,7 +83,20 @@ export const pricesQuery = z.object({ cityId: uuid });
 
 export const generateSlotsSchema = z.object({ days: z.number().int().min(1).max(60).default(14) });
 
+export const createSlotSchema = z.object({
+  areaId: uuid,
+  date: isoDate,
+  startTime: time,
+  endTime: time,
+  capacity: z.number().int().min(0).max(50).default(1),
+  isBlocked: z.boolean().default(false),
+}).refine((value) => value.endTime > value.startTime, { message: "End time must be after start time.", path: ["endTime"] });
+
 export const updateSlotSchema = z.object({
+  areaId: uuid.optional(),
+  date: isoDate.optional(),
+  startTime: time.optional(),
+  endTime: time.optional(),
   capacity: z.number().int().min(0).max(50).optional(),
   isBlocked: z.boolean().optional(),
 });

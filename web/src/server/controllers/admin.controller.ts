@@ -10,6 +10,7 @@ import { adminPayoutService } from "../services/admin-payout.service";
 import { adminUserService } from "../services/admin-user.service";
 import { adminWorkerService } from "../services/admin-worker.service";
 import { dashboardService } from "../services/dashboard.service";
+import { siteContentService } from "../services/site-content.service";
 import type { UserRole } from "../types/db";
 import {
   adminCancelSchema,
@@ -18,6 +19,7 @@ import {
   createAreaSchema,
   createCitySchema,
   createOfferSchema,
+  createSlotSchema,
   createWorkerSchema,
   generateSlotsSchema,
   listBookingsQuery,
@@ -45,12 +47,22 @@ export const adminController = {
   // ------------------------------------------------------------ dashboard
   dashboard: withAuth(ADMIN, async () => ok(await dashboardService.summary())),
 
+  // ------------------------------------------------------------ website CMS
+  getSiteContent: withAuth(ADMIN, async () => ok(await siteContentService.get())),
+  updateSiteContent: withAuth(ADMIN, async (req, auth) =>
+    ok(await siteContentService.save(auth.userId, await req.json())),
+  ),
+
   // ------------------------------------------------------------ cities & areas
   listCities: withAuth(ADMIN, async () => ok(await adminCityService.list())),
   createCity: withAuth(ADMIN, async (req) => created(await adminCityService.create(await readJson(req, createCitySchema)))),
   updateCity: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     ok(await adminCityService.update(uuid.parse(id), await readJson(req, updateCitySchema))),
   ),
+  deleteCity: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await adminCityService.delete(uuid.parse(id));
+    return noContent();
+  }),
   createArea: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     created(await adminCityService.addArea(uuid.parse(id), await readJson(req, createAreaSchema))),
   ),
@@ -77,9 +89,16 @@ export const adminController = {
     const q = readQuery(req, adminSlotsQuery);
     return ok(await adminCatalogService.slots(q.areaId, q.date));
   }),
+  createSlot: withAuth(ADMIN, async (req) =>
+    created(await adminCatalogService.createSlot(await readJson(req, createSlotSchema))),
+  ),
   updateSlot: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     ok(await adminCatalogService.updateSlot(uuid.parse(id), await readJson(req, updateSlotSchema))),
   ),
+  deleteSlot: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await adminCatalogService.deleteSlot(uuid.parse(id));
+    return noContent();
+  }),
 
   // ------------------------------------------------------------ workers
   listWorkers: withAuth(ADMIN, async (req) => ok(await adminWorkerService.list(readQuery(req, listWorkersQuery)))),

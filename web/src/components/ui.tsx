@@ -205,14 +205,14 @@ export function Avatar({ name, className }: { name: string; className?: string }
   );
 }
 
-export function Logo({ href = "/", light = false, suffix }: { href?: string; light?: boolean; suffix?: string }) {
+export function Logo({ href = "/", light = false, suffix, name = BRAND.name }: { href?: string; light?: boolean; suffix?: string; name?: string }) {
   return (
     <Link href={href} className="flex items-center gap-2">
       <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
         <Droplets className="size-4.5" />
       </span>
       <span className={cn("text-lg font-bold tracking-tight", light ? "text-white" : "text-slate-900")}>
-        {BRAND.name}
+        {name}
       </span>
       {suffix && (
         <span

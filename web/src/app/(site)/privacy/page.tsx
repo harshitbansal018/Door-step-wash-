@@ -1,4 +1,7 @@
 import { PolicyPage, PolicySection } from "@/components/site/policy-page";
+import { siteContentService } from "@/server/services/site-content.service";
 
-export const metadata = { title: "Privacy policy" };
-export default function PrivacyPage() { return <PolicyPage title="Privacy policy" updated="30 September 2026"><PolicySection title="Information we collect"><p>We store account details, booking contact and address information, vehicle details, payment references, job status, reviews and service photos needed to operate the platform.</p></PolicySection><PolicySection title="How information is used"><p>Information is used to authenticate users, calculate and fulfil bookings, assign workers, process payments and refunds, prevent abuse, provide support and maintain financial records.</p></PolicySection><PolicySection title="Sharing"><p>Workers see the exact address and customer phone only after accepting an assigned job. Payment information is processed by Razorpay; authentication and database services are provided by Supabase; transactional email may be delivered by the configured email provider.</p></PolicySection><PolicySection title="Security and retention"><p>Role-based access controls and row-level security restrict data access. Records are retained for operational, fraud-prevention and legal obligations. Contact the configured support address to request an account-data review.</p></PolicySection></PolicyPage>; }
+export default async function PrivacyPage() {
+  const { privacy } = (await siteContentService.get()).policies;
+  return <PolicyPage title={privacy.title} updated={privacy.updated}>{privacy.sections.map((section) => <PolicySection key={section.title} title={section.title}><p>{section.body}</p></PolicySection>)}</PolicyPage>;
+}

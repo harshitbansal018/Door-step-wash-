@@ -55,6 +55,10 @@ export const cityModel = {
     return check(await db.from("cities").update(patch).eq("id", id).select("*").single()) as CityRow;
   },
 
+  async deleteCity(db: Db, id: string) {
+    check(await db.from("cities").delete().eq("id", id));
+  },
+
   async insertArea(db: Db, data: Partial<AreaRow>) {
     return check(await db.from("service_areas").insert(data).select("*").single()) as AreaRow;
   },
@@ -65,6 +69,16 @@ export const cityModel = {
 
   async deleteArea(db: Db, id: string) {
     check(await db.from("service_areas").delete().eq("id", id));
+  },
+
+  async locationUsage(db: Db, field: "city_id" | "area_id", id: string) {
+    const [bookings, workers] = await Promise.all([
+      db.from("bookings").select("id", { count: "exact", head: true }).eq(field, id),
+      db.from("workers").select("id", { count: "exact", head: true }).eq(field, id),
+    ]);
+    if (bookings.error) throw bookings.error;
+    if (workers.error) throw workers.error;
+    return { bookings: bookings.count ?? 0, workers: workers.count ?? 0 };
   },
 
   async replacePincodes(db: Db, areaId: string, pincodes: string[]) {

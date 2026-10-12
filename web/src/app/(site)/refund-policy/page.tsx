@@ -1,4 +1,7 @@
 import { PolicyPage, PolicySection } from "@/components/site/policy-page";
+import { siteContentService } from "@/server/services/site-content.service";
 
-export const metadata = { title: "Refund policy" };
-export default function RefundPolicyPage() { return <PolicyPage title="Refund policy" updated="30 September 2026"><PolicySection title="Customer cancellations"><p>A full refund is started automatically when an eligible paid booking is cancelled before the city’s configured cancellation window. Cancellations inside that window may not be refundable.</p></PolicySection><PolicySection title="Operational cancellations"><p>An administrator may cancel a booking and choose whether to issue a full refund. If payment succeeds after the held slot becomes unavailable, the system starts a refund.</p></PolicySection><PolicySection title="Processing"><p>Refunds are sent through Razorpay to the original payment method. Bank and payment-network processing times apply. The payment page records whether a refund is pending, processed or failed.</p></PolicySection><PolicySection title="Partial refunds"><p>Administrators can issue a partial refund up to the remaining captured amount when a service issue is approved.</p></PolicySection></PolicyPage>; }
+export default async function RefundPolicyPage() {
+  const { refund } = (await siteContentService.get()).policies;
+  return <PolicyPage title={refund.title} updated={refund.updated}>{refund.sections.map((section) => <PolicySection key={section.title} title={section.title}><p>{section.body}</p></PolicySection>)}</PolicyPage>;
+}

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { BRAND } from "@/lib/config";
+import { siteContentService } from "@/server/services/site-content.service";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: `${BRAND.name} — ${BRAND.tagline}`,
-  description: "Book a professional car wash at your doorstep in minutes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { general, home } = await siteContentService.get();
+  return { title: { default: `${general.brandName} — ${general.tagline}`, template: `%s | ${general.brandName}` }, description: home.seoDescription };
+}
 
 /**
  * Marks the document as motion-capable before first paint. Scroll-reveal

@@ -8,6 +8,7 @@ import {
   CalendarClock,
   Droplets,
   ExternalLink,
+  FilePenLine,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -32,6 +33,7 @@ const NAV = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/admin/offers", label: "Offers", icon: Tag },
   { href: "/admin/payments", label: "Payments", icon: Wallet },
+  { href: "/admin/content", label: "Site content", icon: FilePenLine },
 ];
 type ShellUser = { name: string; email: string };
 

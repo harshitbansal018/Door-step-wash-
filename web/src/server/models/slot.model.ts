@@ -14,8 +14,22 @@ export const slotModel = {
     return check(await db.from("time_slots").select("*").eq("id", id).maybeSingle()) as SlotRow | null;
   },
 
-  async update(db: Db, id: string, patch: Partial<Pick<SlotRow, "capacity" | "is_blocked">>) {
+  async insert(db: Db, data: Pick<SlotRow, "area_id" | "slot_date" | "start_time" | "end_time" | "capacity" | "is_blocked">) {
+    return check(await db.from("time_slots").insert(data).select("*").single()) as SlotRow;
+  },
+
+  async update(db: Db, id: string, patch: Partial<Pick<SlotRow, "area_id" | "slot_date" | "start_time" | "end_time" | "capacity" | "is_blocked">>) {
     return check(await db.from("time_slots").update(patch).eq("id", id).select("*").single()) as SlotRow;
+  },
+
+  async bookingCount(db: Db, id: string) {
+    const result = await db.from("bookings").select("id", { count: "exact", head: true }).eq("slot_id", id);
+    if (result.error) throw result.error;
+    return result.count ?? 0;
+  },
+
+  async delete(db: Db, id: string) {
+    check(await db.from("time_slots").delete().eq("id", id));
   },
 
   async release(db: Db, slotId: string) {

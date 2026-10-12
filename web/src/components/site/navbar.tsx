@@ -8,14 +8,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { Avatar, Button, Logo } from "@/components/ui";
 import { HOME_FOR_ROLE, type Role } from "@/lib/roles";
 import { cn } from "@/lib/utils";
-
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/cities", label: "Cities" },
-  { href: "/faq", label: "FAQ" },
-];
+import type { SiteContent } from "@/lib/cms";
 
 const HOME_LABEL: Record<Role, string> = {
   customer: "My bookings",
@@ -23,11 +16,12 @@ const HOME_LABEL: Record<Role, string> = {
   admin: "Admin panel",
 };
 
-export function Navbar({ user }: { user: { name: string; role: Role } | null }) {
+export function Navbar({ user, content }: { user: { name: string; role: Role } | null; content: SiteContent["general"] }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const [menuPath, setMenuPath] = useState(pathname);
+  const links = content.navigation;
 
   // Close the mobile menu after navigating (state reset during render).
   if (menuPath !== pathname) {
@@ -58,7 +52,7 @@ export function Navbar({ user }: { user: { name: string; role: Role } | null }) 
       )}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Logo />
+        <Logo name={content.brandName} />
         <div className="hidden items-center gap-1 lg:flex">
           {links.map((l) => {
             const active = pathname === l.href;

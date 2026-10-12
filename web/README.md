@@ -42,7 +42,32 @@ supabase/
    3. `supabase/migrations/20261001000300_security.sql`
    4. `supabase/migrations/20261001000400_storage_and_jobs.sql`
    5. `supabase/migrations/20261001000500_service_role_grants.sql`
-   6. `supabase/seed.sql`
+   6. `supabase/migrations/20261002000100_starting_prices.sql`
+   7. `supabase/migrations/20261011000100_site_content.sql`
+   8. `supabase/seed.sql`
+
+The recommended deployment command applies every migration in timestamp order:
+
+```bash
+npx supabase link --project-ref <your-project-ref>
+npx supabase db push
+```
+
+For a brand-new project, run `npx supabase db push --include-seed` once to load the starting catalogue.
+
+### Website CMS
+
+Administrators can open **Admin → Site content** to edit and publish:
+
+- brand, support details, navigation and footer links;
+- homepage copy, repeatable benefits, FAQs and calls to action;
+- How it works, Pricing, Cities and FAQ page content;
+- page SEO titles and descriptions;
+- Terms, Privacy and Refund policy sections.
+
+Operational content remains in its purpose-built admin sections: cities and areas, services and prices, slots,
+workers, offers, users, bookings and payments. Public pages fall back to the built-in copy until the first CMS
+publish, but the `site_content` migration must be applied before an administrator can save changes.
 
 ### 2. Email + password login with OTP
 

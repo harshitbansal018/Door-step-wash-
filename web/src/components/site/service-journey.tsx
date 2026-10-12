@@ -3,53 +3,25 @@
 import { useEffect, useState } from "react";
 import { CalendarCheck, Camera, Check, MapPin, Navigation, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { SiteContent } from "@/lib/cms";
 
-const journey = [
-  {
-    title: "Choose your wash",
-    short: "Book",
-    icon: CalendarCheck,
-    body: "Enter your pincode, choose your vehicle and package, then select an available time slot.",
-    note: "Your price and availability are confirmed before payment.",
-  },
-  {
-    title: "Prepare your parking spot",
-    short: "Prepare",
-    icon: MapPin,
-    body: "Make sure the vehicle is accessible and a nearby water source is available at the scheduled time.",
-    note: "The car stays exactly where it is parked.",
-  },
-  {
-    title: "Your partner arrives",
-    short: "Arrival",
-    icon: Navigation,
-    body: "A verified service partner brings the pressure washer, microfiber cloths and required cleaning equipment.",
-    note: "Follow assignment and job progress from your account.",
-  },
-  {
-    title: "Review the result",
-    short: "Complete",
-    icon: Camera,
-    body: "Before-and-after photos are added to the job record when the service is completed.",
-    note: "Review your wash and rebook whenever you are ready.",
-  },
-] as const;
+const icons = [CalendarCheck, MapPin, Navigation, Camera];
 
 const AUTO_MS = 5200;
 
-export function ServiceJourney() {
+export function ServiceJourney({ items, label }: { items: SiteContent["howItWorks"]["journey"]; label: string }) {
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [hovered, setHovered] = useState(false);
-  const current = journey[active];
-  const CurrentIcon = current.icon;
+  const current = items[Math.min(active, items.length - 1)];
+  const CurrentIcon = icons[active % icons.length];
   const running = playing && !hovered;
 
   useEffect(() => {
     if (!running) return;
-    const timer = window.setInterval(() => setActive((value) => (value + 1) % journey.length), AUTO_MS);
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % items.length), AUTO_MS);
     return () => window.clearInterval(timer);
-  }, [running, active]);
+  }, [running, active, items.length]);
 
   return (
     <div
@@ -59,7 +31,7 @@ export function ServiceJourney() {
     >
       <div className="border-b border-white/10 p-4 lg:border-r lg:border-b-0 lg:p-6">
         <div className="flex items-center justify-between px-3 pt-2 pb-4">
-          <p className="text-xs font-semibold tracking-[0.16em] text-brand-300 uppercase">Your journey</p>
+          <p className="text-xs font-semibold tracking-[0.16em] text-brand-300 uppercase">{label}</p>
           <button
             type="button"
             onClick={() => setPlaying((value) => !value)}
@@ -70,8 +42,8 @@ export function ServiceJourney() {
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
-          {journey.map((stage, index) => {
-            const Icon = stage.icon;
+          {items.map((stage, index) => {
+            const Icon = icons[index % icons.length];
             const selected = active === index;
             return (
               <button
@@ -115,7 +87,7 @@ export function ServiceJourney() {
           <span className="check-pop flex size-14 items-center justify-center rounded-2xl bg-brand-600 shadow-lg shadow-brand-600/30">
             <CurrentIcon className="size-6" />
           </span>
-          <p className="mt-8 text-sm font-semibold text-brand-300">STEP {active + 1} OF {journey.length}</p>
+          <p className="mt-8 text-sm font-semibold text-brand-300">STEP {active + 1} OF {items.length}</p>
           <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">{current.title}</h2>
           <p className="mt-4 max-w-xl text-lg leading-8 text-slate-300">{current.body}</p>
           <div className="mt-8 flex items-start gap-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
@@ -124,7 +96,7 @@ export function ServiceJourney() {
           </div>
         </div>
         <div className="relative mt-8 flex gap-2">
-          {journey.map((stage, index) => (
+          {items.map((stage, index) => (
             <button
               key={stage.title}
               type="button"

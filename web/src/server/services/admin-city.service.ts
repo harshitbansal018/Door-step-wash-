@@ -63,6 +63,17 @@ export const adminCityService = {
     return city;
   },
 
+  /** Unused cities are deleted with their areas, pincodes, prices and future slots. */
+  async delete(id: string) {
+    const db = createAdminClient();
+    if (!(await cityModel.findCityById(db, id))) throw notFound("City");
+    const usage = await cityModel.locationUsage(db, "city_id", id);
+    if (usage.bookings || usage.workers) {
+      throw conflict(`This city has ${usage.bookings} booking(s) and ${usage.workers} worker(s). Deactivate it to preserve history.`, "LOCATION_IN_USE");
+    }
+    await cityModel.deleteCity(db, id);
+  },
+
   async addArea(cityId: string, input: z.infer<typeof createAreaSchema>) {
     const db = createAdminClient();
     if (!(await cityModel.findCityById(db, cityId))) throw notFound("City");
@@ -96,6 +107,10 @@ export const adminCityService = {
   async deleteArea(areaId: string) {
     const db = createAdminClient();
     if (!(await cityModel.findAreaById(db, areaId))) throw notFound("Area");
+    const usage = await cityModel.locationUsage(db, "area_id", areaId);
+    if (usage.bookings || usage.workers) {
+      throw conflict(`This area has ${usage.bookings} booking(s) and ${usage.workers} worker(s). Deactivate it to preserve history.`, "LOCATION_IN_USE");
+    }
     await cityModel.deleteArea(db, areaId);
   },
 };

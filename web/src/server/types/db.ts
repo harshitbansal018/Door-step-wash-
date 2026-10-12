@@ -128,6 +128,14 @@ export interface OfferRow {
   updated_at: string;
 }
 
+export interface SiteContentRow {
+  id: "main";
+  content: unknown;
+  updated_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface BookingRow {
   id: string;
   code: string;

@@ -2,39 +2,9 @@ import Link from "next/link";
 import { ArrowUpRight, Mail, Phone } from "lucide-react";
 import { Reveal, Stagger } from "@/components/motion";
 import { Logo } from "@/components/ui";
-import { BRAND } from "@/lib/config";
+import type { SiteContent } from "@/lib/cms";
 
-const columns = [
-  {
-    title: "Services",
-    links: [
-      { label: "Express Wash", href: "/pricing" },
-      { label: "Premium Wash", href: "/pricing" },
-      { label: "Deluxe Detailing", href: "/pricing" },
-      { label: "Book now", href: "/book" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "How it works", href: "/how-it-works" },
-      { label: "Cities", href: "/cities" },
-      { label: "FAQ", href: "/faq" },
-      { label: "Become a partner", href: "/worker" },
-      { label: "Admin", href: "/admin" },
-    ],
-  },
-  {
-    title: "Legal",
-    links: [
-      { label: "Terms of service", href: "/terms" },
-      { label: "Privacy policy", href: "/privacy" },
-      { label: "Refund policy", href: "/refund-policy" },
-    ],
-  },
-];
-
-export function Footer() {
+export function Footer({ content }: { content: SiteContent["general"] }) {
   return (
     <footer className="relative overflow-hidden bg-slate-950 text-slate-400">
       <div aria-hidden className="dot-grid absolute inset-0 opacity-60" />
@@ -42,25 +12,25 @@ export function Footer() {
       <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-5">
           <Reveal variant="up" className="lg:col-span-2">
-            <Logo light />
+            <Logo light name={content.brandName} />
             <p className="mt-4 max-w-sm text-sm leading-6">
-              Professional car wash and detailing at your doorstep. Trained, verified washers. Pay securely online.
+              {content.footerDescription}
             </p>
             <div className="mt-6 space-y-2 text-sm">
-              {BRAND.phone && (
+              {content.supportPhone && (
                 <p className="flex items-center gap-2">
-                  <Phone className="size-4" /> {BRAND.phone}
+                  <Phone className="size-4" /> {content.supportPhone}
                 </p>
               )}
-              {BRAND.email && (
+              {content.supportEmail && (
                 <p className="flex items-center gap-2">
-                  <Mail className="size-4" /> {BRAND.email}
+                  <Mail className="size-4" /> {content.supportEmail}
                 </p>
               )}
             </div>
           </Reveal>
           <Stagger as="div" className="contents" step={100} start={80}>
-            {columns.map((col) => (
+            {content.footerLinks.map((col) => (
               <div key={col.title}>
                 <h3 className="text-sm font-semibold text-white">{col.title}</h3>
                 <ul className="mt-4 space-y-3 text-sm">
@@ -81,7 +51,7 @@ export function Footer() {
           </Stagger>
         </div>
         <Reveal variant="fade" className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} {BRAND.name}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {content.brandName}. All rights reserved.</p>
           <p className="flex items-center gap-2">
             <span className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-60" />
