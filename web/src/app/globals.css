@@ -183,9 +183,10 @@ html[data-motion] .reveal[data-inview="true"] {
 }
 
 /* Pointer-following radial highlight (see SpotlightCard). */
+/* No overflow clipping here so badges that hang outside the card (for example
+   "Most popular") stay visible; the highlight clips itself via border-radius. */
 .spotlight {
   position: relative;
-  overflow: hidden;
   isolation: isolate;
 }
 
@@ -194,14 +195,22 @@ html[data-motion] .reveal[data-inview="true"] {
   position: absolute;
   inset: 0;
   z-index: -1;
+  border-radius: inherit;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), var(--spot, rgb(37 99 235 / 0.14)), transparent 55%);
-  transition: opacity 400ms ease;
+  background: radial-gradient(
+    520px circle at var(--mx, 50%) var(--my, 50%),
+    var(--spot, rgb(37 99 235 / 0.1)) 0%,
+    rgb(37 99 235 / 0.04) 35%,
+    transparent 70%
+  );
+  transition: opacity 500ms ease;
 }
 
-.spotlight:hover::before {
-  opacity: 1;
+@media (hover: hover) {
+  .spotlight:hover::before {
+    opacity: 1;
+  }
 }
 
 /* Pointer-following 3D tilt (see Tilt). */
