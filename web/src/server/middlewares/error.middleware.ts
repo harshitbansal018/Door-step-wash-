@@ -10,6 +10,10 @@ const DB_ERRORS: Record<string, { status: number; message: string }> = {
   SLOT_AREA_MISMATCH: { status: 422, message: "That slot is not in your area." },
   BOOKING_NOT_FOUND: { status: 404, message: "Booking not found." },
   PAYMENT_NOT_FOUND: { status: 404, message: "Payment not found." },
+  SUBSCRIPTION_NOT_FOUND: { status: 404, message: "Plan not found." },
+  SUBSCRIPTION_NOT_ACTIVE: { status: 422, message: "This plan is not active." },
+  NO_WASHES_LEFT: { status: 422, message: "All washes for this month have been used." },
+  OUTSIDE_PERIOD: { status: 422, message: "That date is outside the paid period." },
 };
 
 function isDbError(err: unknown): err is { message: string; code?: string; details?: string } {

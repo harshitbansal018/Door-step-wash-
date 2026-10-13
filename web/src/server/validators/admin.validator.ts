@@ -55,14 +55,17 @@ export const updateAreaSchema = z.object({
 });
 
 // ---------------------------------------------------------------- services, prices, slots
-export const updateServiceSchema = z.object({
-  name: z.string().trim().min(2).max(60).optional(),
-  description: trimmed(300).optional(),
-  durationMin: z.number().int().min(10).max(480).optional(),
-  features: z.array(z.string().trim().min(1).max(80)).max(15).optional(),
-  isPopular: z.boolean().optional(),
-  isActive: z.boolean().optional(),
+export const createServiceSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  description: trimmed(300).default(""),
+  durationMin: z.number().int().min(10).max(480),
+  features: z.array(z.string().trim().min(1).max(80)).max(15).default([]),
+  isPopular: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  sortOrder: z.number().int().min(0).max(1000).default(0),
 });
+
+export const updateServiceSchema = createServiceSchema.partial();
 
 export const setPricesSchema = z.object({
   cityId: uuid,
@@ -71,7 +74,8 @@ export const setPricesSchema = z.object({
       z.object({
         serviceId: uuid,
         vehicleType,
-        price: z.number().int().min(1).max(100_000),
+        /** 0 removes the price for that vehicle type. */
+        price: z.number().int().min(0).max(100_000),
         isActive: z.boolean().default(true),
       }),
     )

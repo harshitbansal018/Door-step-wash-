@@ -47,6 +47,29 @@ export const notificationService = {
     );
   },
 
+  planActivated(s: {
+    to: string;
+    name: string;
+    code: string;
+    plan: string;
+    visit: string;
+    periodEnd: string;
+    total: number;
+    renewed: boolean;
+  }) {
+    return sendEmail(
+      s.to,
+      s.renewed ? `Plan ${s.code} renewed` : `Plan ${s.code} is active`,
+      layout(
+        s.renewed ? "Your plan is renewed" : "Your monthly plan is active",
+        p(`Hi ${escape(s.name)}, your <b>${escape(s.plan)}</b> plan is paid and active until <b>${escape(s.periodEnd)}</b>.`) +
+          p(`Your washes are booked automatically every <b>${escape(s.visit)}</b>. You can reschedule any visit from your account.`) +
+          p(`Amount paid: ₹${s.total}`) +
+          button(`${env().NEXT_PUBLIC_SITE_URL}/plan`, "View my plan"),
+      ),
+    );
+  },
+
   workerAssigned(b: BookingEmailInfo & { workerName: string }) {
     return sendEmail(
       b.to,

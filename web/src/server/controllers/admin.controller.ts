@@ -7,6 +7,7 @@ import { adminCatalogService } from "../services/admin-catalog.service";
 import { adminCityService } from "../services/admin-city.service";
 import { adminOfferService } from "../services/admin-offer.service";
 import { adminPayoutService } from "../services/admin-payout.service";
+import { adminPlanService } from "../services/admin-plan.service";
 import { adminUserService } from "../services/admin-user.service";
 import { adminWorkerService } from "../services/admin-worker.service";
 import { dashboardService } from "../services/dashboard.service";
@@ -19,6 +20,7 @@ import {
   createAreaSchema,
   createCitySchema,
   createOfferSchema,
+  createServiceSchema,
   createSlotSchema,
   createWorkerSchema,
   generateSlotsSchema,
@@ -39,6 +41,7 @@ import {
   updateWorkerSchema,
 } from "../validators/admin.validator";
 import { pagination, readJson, readQuery, uuid } from "../validators/common";
+import { createPlanSchema, listSubscriptionsQuery, planPricesQuery, setPlanPricesSchema, updatePlanSchema } from "../validators/plan.validator";
 
 type IdParams = { id: string };
 const ADMIN: UserRole[] = ["admin"];
@@ -78,9 +81,16 @@ export const adminController = {
   listServices: withAuth(ADMIN, async (req) =>
     ok(await adminCatalogService.servicesWithPrices(readQuery(req, pricesQuery).cityId)),
   ),
+  createService: withAuth(ADMIN, async (req) =>
+    created(await adminCatalogService.createService(await readJson(req, createServiceSchema))),
+  ),
   updateService: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     ok(await adminCatalogService.updateService(uuid.parse(id), await readJson(req, updateServiceSchema))),
   ),
+  deleteService: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await adminCatalogService.deleteService(uuid.parse(id));
+    return noContent();
+  }),
   setPrices: withAuth(ADMIN, async (req) => ok(await adminCatalogService.setPrices(await readJson(req, setPricesSchema)))),
   generateSlots: withAuth(ADMIN, async (req) =>
     ok(await adminCatalogService.generateSlots((await readJson(req, generateSlotsSchema)).days)),
@@ -99,6 +109,26 @@ export const adminController = {
     await adminCatalogService.deleteSlot(uuid.parse(id));
     return noContent();
   }),
+
+  // ------------------------------------------------------------ monthly plans
+  listPlans: withAuth(ADMIN, async (req) =>
+    ok(await adminPlanService.plansWithPrices(readQuery(req, planPricesQuery).cityId)),
+  ),
+  createPlan: withAuth(ADMIN, async (req) => created(await adminPlanService.createPlan(await readJson(req, createPlanSchema)))),
+  updatePlan: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
+    ok(await adminPlanService.updatePlan(uuid.parse(id), await readJson(req, updatePlanSchema))),
+  ),
+  deletePlan: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await adminPlanService.deletePlan(uuid.parse(id));
+    return noContent();
+  }),
+  setPlanPrices: withAuth(ADMIN, async (req) =>
+    ok(await adminPlanService.setPrices(await readJson(req, setPlanPricesSchema))),
+  ),
+  listSubscriptions: withAuth(ADMIN, async (req) =>
+    ok(await adminPlanService.listSubscriptions(readQuery(req, listSubscriptionsQuery))),
+  ),
+  runPlanScheduler: withAuth(ADMIN, async () => ok(await adminPlanService.runScheduler())),
 
   // ------------------------------------------------------------ workers
   listWorkers: withAuth(ADMIN, async (req) => ok(await adminWorkerService.list(readQuery(req, listWorkersQuery)))),

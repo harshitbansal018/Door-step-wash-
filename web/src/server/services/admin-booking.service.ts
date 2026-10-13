@@ -38,6 +38,7 @@ export const adminBookingService = {
     const urls = await storageService.signedUrls(db, "photos", photos.map((p) => p.storage_path));
     return {
       ...presentBooking(booking, { showWorkerPhone: true }),
+      notes: booking.notes,
       customerId: booking.customer_id,
       workerId: booking.worker_id,
       timeline: timeline.map((t) => ({ status: t.to_status, at: t.created_at })),

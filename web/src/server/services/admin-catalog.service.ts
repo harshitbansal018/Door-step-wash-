@@ -1,11 +1,18 @@
 import "server-only";
 import type { z } from "zod";
 import { conflict, notFound, unprocessable } from "../lib/errors";
+import { uniqueSlug } from "../lib/slug";
 import { createAdminClient } from "../lib/supabase";
 import { serviceModel } from "../models/service.model";
 import { slotModel } from "../models/slot.model";
 import type { ServiceRow, SlotRow } from "../types/db";
-import type { createSlotSchema, setPricesSchema, updateServiceSchema, updateSlotSchema } from "../validators/admin.validator";
+import type {
+  createServiceSchema,
+  createSlotSchema,
+  setPricesSchema,
+  updateServiceSchema,
+  updateSlotSchema,
+} from "../validators/admin.validator";
 
 export const adminCatalogService = {
   async slots(areaId: string, date: string) {
@@ -23,6 +30,21 @@ export const adminCatalogService = {
     }));
   },
 
+  async createService(input: z.infer<typeof createServiceSchema>) {
+    const db = createAdminClient();
+    const existing = await serviceModel.listAll(db);
+    return serviceModel.insert(db, {
+      slug: uniqueSlug(input.name, existing.map((s) => s.slug)),
+      name: input.name,
+      description: input.description,
+      duration_min: input.durationMin,
+      features: input.features,
+      is_popular: input.isPopular,
+      is_active: input.isActive,
+      sort_order: input.sortOrder,
+    });
+  },
+
   async updateService(id: string, input: z.infer<typeof updateServiceSchema>) {
     const db = createAdminClient();
     if (!(await serviceModel.findById(db, id))) throw notFound("Service");
@@ -33,20 +55,42 @@ export const adminCatalogService = {
     if (input.features !== undefined) patch.features = input.features;
     if (input.isPopular !== undefined) patch.is_popular = input.isPopular;
     if (input.isActive !== undefined) patch.is_active = input.isActive;
+    if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder;
     return serviceModel.update(db, id, patch);
   },
 
+  /** Deletes a service and its prices. Refused while bookings or plans still use it: hide it instead. */
+  async deleteService(id: string) {
+    const db = createAdminClient();
+    if (!(await serviceModel.findById(db, id))) throw notFound("Service");
+    const usage = await serviceModel.usage(db, id);
+    if (usage.bookings > 0) {
+      throw conflict(`This service has ${usage.bookings} booking(s) in its history. Set it to hidden instead of deleting.`, "SERVICE_IN_USE");
+    }
+    if (usage.plans > 0) {
+      throw conflict(`${usage.plans} monthly plan(s) are built on this service. Change or delete those plans first.`, "SERVICE_IN_USE");
+    }
+    await serviceModel.delete(db, id);
+  },
+
+  /** Upserts prices; a price of 0 removes that vehicle's price for the city. */
   async setPrices(input: z.infer<typeof setPricesSchema>) {
-    await serviceModel.upsertPrices(
-      createAdminClient(),
-      input.prices.map((p) => ({
-        city_id: input.cityId,
-        service_id: p.serviceId,
-        vehicle_type: p.vehicleType,
-        price: p.price,
-        is_active: p.isActive,
-      })),
-    );
+    const db = createAdminClient();
+    const keep = input.prices.filter((p) => p.price > 0);
+    const drop = input.prices.filter((p) => p.price === 0);
+    if (keep.length) {
+      await serviceModel.upsertPrices(
+        db,
+        keep.map((p) => ({
+          city_id: input.cityId,
+          service_id: p.serviceId,
+          vehicle_type: p.vehicleType,
+          price: p.price,
+          is_active: p.isActive,
+        })),
+      );
+    }
+    for (const p of drop) await serviceModel.deletePrice(db, input.cityId, p.serviceId, p.vehicleType);
     return this.servicesWithPrices(input.cityId);
   },
 

@@ -58,6 +58,7 @@ export function presentBooking(b: BookingDetail, opts: { showWorkerPhone?: boole
       : null,
     cancelledReason: b.cancelled_reason,
     createdAt: b.created_at,
+    subscriptionId: b.subscription_id ?? null,
   };
 }
 

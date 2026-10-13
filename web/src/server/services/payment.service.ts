@@ -6,9 +6,11 @@ import { createAdminClient } from "../lib/supabase";
 import { formatSlot } from "../lib/time";
 import { bookingModel } from "../models/booking.model";
 import { paymentModel } from "../models/payment.model";
+import { subscriptionModel } from "../models/subscription.model";
 import { userModel } from "../models/user.model";
 import type { BookingRow, PaymentRow } from "../types/db";
 import { notificationService } from "./notification.service";
+import { subscriptionService } from "./subscription.service";
 
 async function notifyConfirmed(bookingId: string) {
   const db = createAdminClient();
@@ -70,11 +72,19 @@ export const paymentService = {
     }
     const db = createAdminClient();
     const payment = await paymentModel.findByOrderId(db, input.orderId);
-    if (!payment) throw notFound("Payment");
-    const booking = await bookingModel.findById(db, payment.booking_id);
-    if (!booking || booking.customer_id !== customerId) throw forbidden();
+    if (payment) {
+      const booking = await bookingModel.findById(db, payment.booking_id);
+      if (!booking || booking.customer_id !== customerId) throw forbidden();
+      return this.applyCapture(input.orderId, input.paymentId, null, null);
+    }
 
-    return this.applyCapture(input.orderId, input.paymentId, null, null);
+    // Not a booking order: it may be a monthly plan payment.
+    const planPayment = await subscriptionModel.findPaymentByOrderId(db, input.orderId);
+    if (!planPayment) throw notFound("Payment");
+    const subscription = await subscriptionModel.findById(db, planPayment.subscription_id);
+    if (!subscription || subscription.customer_id !== customerId) throw forbidden();
+    const result = await subscriptionService.applyCapture(input.orderId, input.paymentId, null, null);
+    return { subscriptionId: result.subscriptionId, status: result.status };
   },
 
   async applyCapture(orderId: string, paymentId: string, method: string | null, raw: unknown) {
@@ -111,16 +121,29 @@ export const paymentService = {
       case "order.paid": {
         if (!pay) break;
         const record = await paymentModel.findByOrderId(db, pay.order_id);
-        if (!record) break; // Not one of our orders.
-        if (pay.amount !== record.amount * 100) {
-          console.error("[payments] amount mismatch", pay.order_id, pay.amount, record.amount);
+        if (record) {
+          if (pay.amount !== record.amount * 100) {
+            console.error("[payments] amount mismatch", pay.order_id, pay.amount, record.amount);
+            break;
+          }
+          await this.applyCapture(pay.order_id, pay.id, pay.method ?? null, event.payload);
           break;
         }
-        await this.applyCapture(pay.order_id, pay.id, pay.method ?? null, event.payload);
+        const planRecord = await subscriptionModel.findPaymentByOrderId(db, pay.order_id);
+        if (!planRecord) break; // Not one of our orders.
+        if (pay.amount !== planRecord.amount * 100) {
+          console.error("[payments] plan amount mismatch", pay.order_id, pay.amount, planRecord.amount);
+          break;
+        }
+        await subscriptionService.applyCapture(pay.order_id, pay.id, pay.method ?? null, event.payload);
         break;
       }
       case "payment.failed": {
-        if (pay) await paymentModel.markFailed(db, pay.order_id, pay.error_description ?? "Payment failed", event.payload);
+        if (pay) {
+          const reason = pay.error_description ?? "Payment failed";
+          await paymentModel.markFailed(db, pay.order_id, reason, event.payload);
+          await subscriptionModel.markPaymentFailed(db, pay.order_id, reason, event.payload);
+        }
         break;
       }
       case "refund.processed":

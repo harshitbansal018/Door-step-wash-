@@ -9,6 +9,7 @@ import {
   Droplets,
   ExternalLink,
   FilePenLine,
+  Repeat,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -33,6 +34,7 @@ const NAV = [
   { href: "/admin/users", label: "Users", icon: UserCog },
   { href: "/admin/offers", label: "Offers", icon: Tag },
   { href: "/admin/payments", label: "Payments", icon: Wallet },
+  { href: "/admin/plans", label: "Monthly plans", icon: Repeat },
   { href: "/admin/content", label: "Site content", icon: FilePenLine },
 ];
 type ShellUser = { name: string; email: string };

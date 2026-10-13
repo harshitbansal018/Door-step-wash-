@@ -5,34 +5,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Bike, Car, CarFront, Check, CheckCircle2, Loader2, MapPin, Tag, Truck } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import { type CatalogService, type Coverage, type Quote, type Slot, VEHICLES, type VehicleType } from "@/lib/domain";
+import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
 import { cn, formatMoney } from "@/lib/utils";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
 
-type Checkout = {
-  provider: "razorpay";
-  keyId: string;
-  orderId: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  prefill: { name: string; email: string; contact: string };
-};
 type CreateResult = { booking: { id: string; code: string; total: number }; quote: Quote; checkout: Checkout | null; paymentSkipped: boolean };
-type RazorpayResult = { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string };
-type RazorpayOptions = Checkout & {
-  key: string;
-  order_id: string;
-  handler: (result: RazorpayResult) => void;
-  modal: { ondismiss: () => void };
-  theme: { color: string };
-};
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
-  }
-}
 
 const STEPS = ["Service area", "Vehicle & package", "Date & time", "Details & payment"];
 const vehicleIcon = { hatchback: Car, sedan: CarFront, suv: Truck, bike: Bike } as const;
@@ -206,37 +183,35 @@ export function BookingWizard({
         setBusy(false);
         return;
       }
-      if (!window.Razorpay) throw new Error("Payment window did not load. Refresh and try again.");
-      const checkout = new window.Razorpay({
-        ...result.checkout,
-        key: result.checkout.keyId,
-        order_id: result.checkout.orderId,
-        handler: async (response) => {
-          try {
-            await api("/api/payments/verify", {
-              method: "POST",
-              body: {
-                orderId: response.razorpay_order_id,
-                paymentId: response.razorpay_payment_id,
-                signature: response.razorpay_signature,
-              },
-            });
-            setConfirmed({ id: result.booking.id, code: result.booking.code, paid: true });
-          } catch (caught) {
-            setError(caught instanceof Error ? caught.message : "Payment verification failed.");
-          } finally {
-            setBusy(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setBusy(false);
-            setError("Payment was not completed. Your slot is held briefly; start a new booking if it expires.");
+      let response;
+      try {
+        response = await openCheckout(result.checkout);
+      } catch (caught) {
+        setBusy(false);
+        setError(
+          caught instanceof CheckoutDismissed
+            ? "Payment was not completed. Your slot is held briefly; start a new booking if it expires."
+            : caught instanceof Error
+              ? caught.message
+              : "Could not open the payment window.",
+        );
+        return;
+      }
+      try {
+        await api("/api/payments/verify", {
+          method: "POST",
+          body: {
+            orderId: response.razorpay_order_id,
+            paymentId: response.razorpay_payment_id,
+            signature: response.razorpay_signature,
           },
-        },
-        theme: { color: "#2563eb" },
-      });
-      checkout.open();
+        });
+        setConfirmed({ id: result.booking.id, code: result.booking.code, paid: true });
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Payment verification failed.");
+      } finally {
+        setBusy(false);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start payment.");
       setBusy(false);

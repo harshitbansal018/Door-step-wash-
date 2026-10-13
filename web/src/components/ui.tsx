@@ -5,6 +5,8 @@ import { BRAND } from "@/lib/config";
 import { STATUS_META, type BookingStatus, type Tone } from "@/lib/domain";
 import { cn, initials } from "@/lib/utils";
 
+export { Modal } from "./modal";
+
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "dark";
 type Size = "sm" | "md" | "lg";
 
@@ -50,7 +52,6 @@ export function Button({ variant = "primary", size = "md", href, className, chil
     </button>
   );
 }
-
 const toneClass: Record<Tone, string> = {
   slate: "bg-slate-100 text-slate-700 ring-slate-500/20",
   blue: "bg-blue-50 text-blue-700 ring-blue-600/20",
@@ -264,41 +265,5 @@ export function StatCard({
         </p>
       )}
     </Card>
-  );
-}
-
-export function Modal({
-  open,
-  onClose,
-  title,
-  description,
-  children,
-  footer,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description?: string;
-  children: ReactNode;
-  footer?: ReactNode;
-}) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="modal-backdrop absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="modal-panel scroll-slim relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white shadow-2xl shadow-slate-950/20 ring-1 ring-slate-900/5 sm:rounded-2xl"
-      >
-        <div className="border-b border-slate-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          {description && <p className="mt-0.5 text-sm text-slate-500">{description}</p>}
-        </div>
-        <div className="px-6 py-5">{children}</div>
-        {footer && <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">{footer}</div>}
-      </div>
-    </div>
   );
 }

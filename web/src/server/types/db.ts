@@ -20,6 +20,85 @@ export type OfferUserType = "all" | "new";
 export type ParkingType = "basement" | "open" | "covered" | "street";
 export type CarAccess = "customer_present" | "key_with_security" | "no_access";
 export type PhotoKind = "before" | "after";
+export type SubscriptionStatus = "pending_payment" | "active" | "paused" | "cancelled" | "expired";
+
+export interface PlanRow {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  service_id: string;
+  washes_per_month: number;
+  bonus_service_id: string | null;
+  bonus_count: number;
+  features: string[];
+  is_popular: boolean;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CityPlanRow {
+  city_id: string;
+  plan_id: string;
+  vehicle_type: VehicleType;
+  price: number;
+  is_active: boolean;
+}
+
+export interface SubscriptionRow {
+  id: string;
+  code: string;
+  customer_id: string;
+  plan_id: string;
+  city_id: string;
+  area_id: string;
+  status: SubscriptionStatus;
+  weekday: number;
+  preferred_start: string;
+  vehicle_type: VehicleType;
+  vehicle_make_model: string;
+  vehicle_plate: string;
+  address_line: string;
+  landmark: string | null;
+  pincode: string;
+  parking_type: ParkingType;
+  parking_spot: string | null;
+  car_access: CarAccess;
+  contact_name: string;
+  contact_phone: string;
+  notes: string | null;
+  plan_price: number;
+  area_charge: number;
+  total: number;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  washes_total: number;
+  washes_used: number;
+  cancelled_reason: string | null;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubscriptionPaymentRow {
+  id: string;
+  subscription_id: string;
+  provider: string;
+  provider_order_id: string;
+  provider_payment_id: string | null;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  period_start: string;
+  period_end: string;
+  method: string | null;
+  error_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface ProfileRow {
   id: string;
@@ -146,6 +225,7 @@ export interface BookingRow {
   slot_id: string;
   worker_id: string | null;
   offer_id: string | null;
+  subscription_id: string | null;
   status: BookingStatus;
   status_changed_by: string | null;
   slot_date: string;

@@ -94,8 +94,103 @@ export interface Booking {
   worker: { name: string; rating: number; phone: string | null } | null;
   cancelledReason: string | null;
   createdAt: string;
+  subscriptionId?: string | null;
   workerId?: string | null;
   customerId?: string;
+}
+
+export type SubscriptionStatus = "pending_payment" | "active" | "paused" | "cancelled" | "expired";
+
+export const SUBSCRIPTION_META: Record<SubscriptionStatus, { label: string; tone: Tone }> = {
+  pending_payment: { label: "Payment pending", tone: "amber" },
+  active: { label: "Active", tone: "green" },
+  paused: { label: "Paused", tone: "amber" },
+  cancelled: { label: "Cancelled", tone: "red" },
+  expired: { label: "Expired", tone: "slate" },
+};
+
+export const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+/** A monthly plan as shown in the public catalogue. Prices are per city; empty until an area is known. */
+export interface CatalogPlan {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  washesPerMonth: number;
+  bonusCount: number;
+  visitsPerMonth: number;
+  service: { id: string; name: string };
+  bonusService: { id: string; name: string } | null;
+  features: string[];
+  isPopular: boolean;
+  prices: Partial<Record<VehicleType, number>>;
+  /** What the same visits would cost when booked one by one. */
+  listPrices: Partial<Record<VehicleType, number>>;
+}
+
+export interface PlanQuote {
+  planPrice: number;
+  areaCharge: number;
+  total: number;
+  visits: number;
+  perVisit: number;
+  listPrice: number | null;
+}
+
+export interface PlanOptions {
+  city: { id: string; name: string };
+  area: { id: string; name: string; extraCharge: number };
+  startTimes: string[];
+  slotMinutes: number;
+}
+
+export interface Subscription {
+  id: string;
+  code: string;
+  status: SubscriptionStatus;
+  plan: {
+    id: string;
+    slug: string;
+    name: string;
+    tagline: string;
+    washesPerMonth: number;
+    bonusCount: number;
+    service: string;
+    bonusService: string | null;
+    features: string[];
+  };
+  city: string;
+  area: string;
+  weekday: number;
+  startTime: string;
+  vehicle: { type: VehicleType; makeModel: string; plate: string };
+  address: { line: string; landmark: string | null; pincode: string };
+  contact: { name: string; phone: string };
+  price: { plan: number; areaCharge: number; total: number };
+  period: { start: string | null; end: string | null };
+  washes: { total: number; used: number; remaining: number };
+  canRenew: boolean;
+  cancelledReason: string | null;
+  createdAt: string;
+}
+
+export interface SubscriptionVisit {
+  id: string;
+  code: string;
+  status: BookingStatus;
+  service: string;
+  slot: { date: string; start: string; end: string };
+  worker: { name: string; rating: number; phone: string | null } | null;
+}
+
+export interface SubscriptionSummary {
+  subscription: Subscription;
+  visits: SubscriptionVisit[];
+  nextVisit: SubscriptionVisit | null;
+  savings: number;
+  lastPayment: { amount: number; status: string; paidAt: string; periodStart: string; periodEnd: string } | null;
 }
 
 export interface City {

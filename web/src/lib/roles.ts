@@ -13,6 +13,8 @@ export const PROTECTED_ROUTES: { prefix: string; roles: Role[] }[] = [
   { prefix: "/worker", roles: ["worker"] },
   { prefix: "/book", roles: ["customer"] },
   { prefix: "/bookings", roles: ["customer", "admin"] },
+  { prefix: "/plan", roles: ["customer"] },
+  { prefix: "/plans/start", roles: ["customer"] },
   { prefix: "/account", roles: ["customer", "worker", "admin"] },
 ];
 

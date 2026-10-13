@@ -45,6 +45,7 @@ supabase/
    6. `supabase/migrations/20261002000100_starting_prices.sql`
    7. `supabase/migrations/20261011000100_site_content.sql`
    8. `supabase/seed.sql`
+   9. `supabase/migrations/20261013000100_monthly_plans.sql` (after the service seed for starter plans)
 
 The recommended deployment command applies every migration in timestamp order:
 
@@ -167,3 +168,9 @@ Responses are `{ "data": ... }` on success and `{ "error": { "code", "message", 
 | `expire-pending-bookings` | every minute | unpaid bookings older than 10 min → expired, slot freed |
 | `generate-time-slots` | daily 05:45 IST | keeps 14 days of slots open |
 | `build-weekly-payouts` | Monday 01:00 IST | groups last week's worker earnings into payouts |
+
+## Services, pricing and monthly plans CMS
+
+Use **Admin > Services & pricing** to add, edit, hide or delete services and manage prices by city and vehicle. Use **Admin > Monthly plans** to add, edit, hide or delete plans, including regular and bonus services, visit counts, features and display order. Blank or zero prices remove that vehicle offer in the selected city. Catalogue edits apply to public pricing and checkout.
+
+Apply `supabase/migrations/20261013000100_monthly_plans.sql` before using monthly plans. For a fresh database, seed services before running this migration to create the starter plans, or add plans through Admin afterwards. Services with booking history or plan references, and plans with subscription history, must be hidden rather than deleted.
