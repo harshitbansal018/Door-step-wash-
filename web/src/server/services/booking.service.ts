@@ -207,6 +207,7 @@ export const bookingService = {
     const urls = await storageService.signedUrls(createAdminClient(), "photos", photos.map((p) => p.storage_path));
     return {
       ...presentBooking(booking, { showWorkerPhone: ["accepted", "on_the_way", "in_progress"].includes(booking.status) }),
+      notes: booking.notes,
       timeline: timeline.map((t) => ({ status: t.to_status, at: t.created_at })),
       photos: photos.map((p) => ({ kind: p.kind, url: urls.get(p.storage_path) ?? null })),
       payment: payment ? { status: payment.status, method: payment.method, amount: payment.amount } : null,

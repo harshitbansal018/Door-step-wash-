@@ -2,7 +2,7 @@ export type Role = "customer" | "worker" | "admin";
 
 /** Where each role lands after logging in. */
 export const HOME_FOR_ROLE: Record<Role, string> = {
-  customer: "/bookings",
+  customer: "/dashboard",
   worker: "/worker",
   admin: "/admin",
 };
@@ -12,6 +12,7 @@ export const PROTECTED_ROUTES: { prefix: string; roles: Role[] }[] = [
   { prefix: "/admin", roles: ["admin"] },
   { prefix: "/worker", roles: ["worker"] },
   { prefix: "/book", roles: ["customer"] },
+  { prefix: "/dashboard", roles: ["customer"] },
   { prefix: "/bookings", roles: ["customer", "admin"] },
   { prefix: "/plan", roles: ["customer"] },
   { prefix: "/plans/start", roles: ["customer"] },

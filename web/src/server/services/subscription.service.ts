@@ -110,7 +110,9 @@ async function openPayment(sub: SubscriptionRow, period: { start: string; end: s
       period_start: period.start,
       period_end: period.end,
     });
-    await subscriptionService.applyCapture(orderId, "dev", "dev", null);
+    // The database enforces unique provider payment IDs. Reusing the literal
+    // "dev" lets only the first local subscription activate successfully.
+    await subscriptionService.applyCapture(orderId, `devpay_${orderId}`, "dev", null);
     return { checkout: null, paymentSkipped: true };
   }
 

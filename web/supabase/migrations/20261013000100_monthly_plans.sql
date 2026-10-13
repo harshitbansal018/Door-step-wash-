@@ -258,7 +258,11 @@ begin
          and (select washes_used from public.subscriptions where id = sub.id) < sub.washes_total
          and not exists (
            select 1 from public.bookings b
-            where b.subscription_id = sub.id and b.slot_date = d and b.status <> 'cancelled'
+            where b.subscription_id = sub.id
+              and b.slot_date = d
+              -- A customer-cancelled visit stays cancelled. Visits cancelled
+              -- while changing the plan schedule may be recreated at the new time.
+              and (b.status <> 'cancelled' or b.cancelled_reason is distinct from 'Plan visit day changed')
          )
       then
         select * into s from public.time_slots t

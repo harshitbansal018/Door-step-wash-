@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import type { SiteContent } from "@/lib/cms";
 
 const HOME_LABEL: Record<Role, string> = {
-  customer: "My bookings",
+  customer: "Dashboard",
   worker: "Partner portal",
   admin: "Admin panel",
 };

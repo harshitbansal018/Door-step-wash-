@@ -99,6 +99,13 @@ export interface Booking {
   customerId?: string;
 }
 
+export interface BookingDetails extends Booking {
+  notes: string | null;
+  timeline: { status: BookingStatus; at: string }[];
+  photos: { kind: "before" | "after"; url: string | null }[];
+  payment: { status: string; method: string | null; amount: number } | null;
+}
+
 export type SubscriptionStatus = "pending_payment" | "active" | "paused" | "cancelled" | "expired";
 
 export const SUBSCRIPTION_META: Record<SubscriptionStatus, { label: string; tone: Tone }> = {
