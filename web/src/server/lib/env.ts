@@ -7,6 +7,7 @@ const schema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20).refine((value) => !value.startsWith("your-")),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
+  PAYMENTS_MODE: z.enum(["mock", "razorpay"]).default("razorpay"),
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),

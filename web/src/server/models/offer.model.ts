@@ -24,6 +24,20 @@ export const offerModel = {
     return check(await db.from("offers").update(patch).eq("id", id).select("*").single()) as OfferRow;
   },
 
+  async referenceCounts(db: Db, id: string) {
+    const [bookings, usages] = await Promise.all([
+      db.from("bookings").select("id", { count: "exact", head: true }).eq("offer_id", id),
+      db.from("offer_usages").select("id", { count: "exact", head: true }).eq("offer_id", id),
+    ]);
+    if (bookings.error) throw bookings.error;
+    if (usages.error) throw usages.error;
+    return { bookings: bookings.count ?? 0, usages: usages.count ?? 0 };
+  },
+
+  async delete(db: Db, id: string) {
+    check(await db.from("offers").delete().eq("id", id));
+  },
+
   async usageCountForUser(db: Db, offerId: string, userId: string) {
     const { count, error } = await db
       .from("offer_usages")

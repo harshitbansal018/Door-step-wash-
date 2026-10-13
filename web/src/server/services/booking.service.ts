@@ -1,6 +1,6 @@
 import "server-only";
 import { conflict, forbidden, notFound, unprocessable } from "../lib/errors";
-import { razorpay } from "../lib/razorpay";
+import { env } from "../lib/env";
 import { createAdminClient, type Db } from "../lib/supabase";
 import { formatSlot } from "../lib/time";
 import type { AuthContext } from "../middlewares/auth.middleware";
@@ -129,7 +129,7 @@ export const bookingService = {
       PAYMENT_HOLD_MINUTES,
     );
 
-    if (process.env.NODE_ENV !== "production" && !razorpay.isConfigured()) {
+    if (env().PAYMENTS_MODE === "mock") {
       const confirmed = await bookingModel.transition(db, booking.id, ["pending_payment"], {
         status: "confirmed",
         expires_at: null,

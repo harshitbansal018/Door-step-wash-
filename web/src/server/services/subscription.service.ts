@@ -1,6 +1,7 @@
 import "server-only";
 import { BRAND } from "@/lib/config";
 import { conflict, forbidden, notFound, unprocessable } from "../lib/errors";
+import { env } from "../lib/env";
 import { razorpay } from "../lib/razorpay";
 import { createAdminClient, type Db } from "../lib/supabase";
 import { addDays, hhmm, todayIn } from "../lib/time";
@@ -99,8 +100,8 @@ function assertStartTime(city: { open_time: string; close_time: string; slot_min
 async function openPayment(sub: SubscriptionRow, period: { start: string; end: string }, customer: { name: string; email: string; phone: string }) {
   const db = createAdminClient();
 
-  if (process.env.NODE_ENV !== "production" && !razorpay.isConfigured()) {
-    // Local development without payment keys: record a fake capture so the flow can be exercised end to end.
+  if (env().PAYMENTS_MODE === "mock") {
+    // Explicit mock mode: record a fake capture so the flow can be exercised end to end.
     const orderId = `dev_${sub.id.slice(0, 8)}_${Date.now()}`;
     await subscriptionModel.insertPayment(db, {
       subscription_id: sub.id,

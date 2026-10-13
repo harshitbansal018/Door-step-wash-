@@ -1,6 +1,6 @@
 import "server-only";
 import type { z } from "zod";
-import { notFound, unprocessable } from "../lib/errors";
+import { conflict, notFound, unprocessable } from "../lib/errors";
 import { createAdminClient } from "../lib/supabase";
 import { offerModel } from "../models/offer.model";
 import type { OfferRow } from "../types/db";
@@ -49,9 +49,26 @@ export const adminOfferService = {
     if (merged.discount_type === "percent" && merged.value > 100) {
       throw unprocessable("A percentage can't be more than 100.", "INVALID_OFFER");
     }
+    if (merged.discount_type === "flat" && merged.max_discount) {
+      throw unprocessable("A maximum discount only applies to percentage offers.", "INVALID_OFFER");
+    }
     if (new Date(merged.valid_to) <= new Date(merged.valid_from)) {
       throw unprocessable("End date must be after the start date.", "INVALID_OFFER");
     }
+    if (merged.usage_limit !== null && merged.usage_limit < existing.used_count) {
+      throw unprocessable(`This offer has already been used ${existing.used_count} times.`, "INVALID_USAGE_LIMIT");
+    }
     return offerModel.update(db, id, toRow(input));
+  },
+
+  async delete(id: string) {
+    const db = createAdminClient();
+    const existing = await offerModel.findById(db, id);
+    if (!existing) throw notFound("Offer");
+    const references = await offerModel.referenceCounts(db, id);
+    if (references.bookings > 0 || references.usages > 0) {
+      throw conflict("This offer has booking history. Deactivate it instead of deleting it.", "OFFER_IN_USE");
+    }
+    await offerModel.delete(db, id);
   },
 };

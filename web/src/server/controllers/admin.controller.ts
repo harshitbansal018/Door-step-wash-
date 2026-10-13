@@ -155,6 +155,10 @@ export const adminController = {
   updateOffer: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
     ok(await adminOfferService.update(uuid.parse(id), await readJson(req, updateOfferSchema))),
   ),
+  deleteOffer: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await adminOfferService.delete(uuid.parse(id));
+    return noContent();
+  }),
 
   // ------------------------------------------------------------ bookings
   listBookings: withAuth(ADMIN, async (req) => ok(await adminBookingService.list(readQuery(req, listBookingsQuery)))),
