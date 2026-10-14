@@ -148,7 +148,10 @@ export const adminController = {
   ),
 
   // ------------------------------------------------------------ offers
-  listOffers: withAuth(ADMIN, async () => ok(await adminOfferService.list())),
+  listOffers: withAuth(ADMIN, async (req) => {
+    const q = readQuery(req, pagination);
+    return ok(await adminOfferService.list(q.page, q.pageSize));
+  }),
   createOffer: withAuth(ADMIN, async (req, auth) =>
     created(await adminOfferService.create(auth.userId, await readJson(req, createOfferSchema))),
   ),
@@ -182,7 +185,8 @@ export const adminController = {
     const q = readQuery(req, pagination);
     return ok(await adminPayoutService.transactions(q.page, q.pageSize));
   }),
-  listPayouts: withAuth(ADMIN, async (req) => ok(await adminPayoutService.list(readQuery(req, payoutsQuery).status))),
+  listPayouts: withAuth(ADMIN, async (req) => ok(await adminPayoutService.list(readQuery(req, payoutsQuery)))),
+  paymentsSummary: withAuth(ADMIN, async () => ok(await adminPayoutService.summary())),
   buildPayouts: withAuth(ADMIN, async () => ok(await adminPayoutService.build())),
   markPayoutPaid: withAuth<IdParams>(ADMIN, async (req, auth, { id }) => {
     const { reference } = await readJson(req, markPayoutPaidSchema);

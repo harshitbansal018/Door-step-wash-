@@ -23,7 +23,8 @@ export function Parallax({
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // No scroll-driven work on phones and touch screens: scrolling is where they struggle most.
+    if (window.matchMedia("(prefers-reduced-motion: reduce), (max-width: 767px), (pointer: coarse)").matches) return;
     let frame = 0;
     const update = () => {
       frame = 0;

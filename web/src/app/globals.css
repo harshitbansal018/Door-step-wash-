@@ -689,6 +689,67 @@ details summary::-webkit-details-marker {
 }
 
 /* ------------------------------------------------------------------ */
+/* Scroll performance                                                  */
+/* ------------------------------------------------------------------ */
+
+/* Hero sections are paused while off screen (set by HeroBackground). */
+[data-paused="true"] *,
+[data-paused="true"] *::before,
+[data-paused="true"] *::after {
+  animation-play-state: paused !important;
+}
+
+/*
+ * Phones and touch screens: keep the look, drop the per-frame cost.
+ * Blurred blobs become a static gradient (blurred once, never re-drawn),
+ * blend modes and full-area repaint effects are removed, and the header is
+ * solid instead of re-blurring the content scrolling under it.
+ */
+@media (max-width: 767px), (pointer: coarse) {
+  .aurora,
+  .aurora-1,
+  .aurora-2,
+  .aurora-3,
+  .aurora-4 {
+    animation: none;
+    mix-blend-mode: normal;
+    filter: blur(48px);
+    will-change: auto;
+    opacity: 0.85;
+  }
+  .hero-bg-dark .aurora { mix-blend-mode: normal; }
+
+  .rays,
+  .hero-glow { display: none; }
+
+  /* Five bubbles are enough to read as "water" on a small screen. */
+  .bubble:nth-child(n + 6) { display: none; }
+
+  .text-gradient {
+    animation: none;
+    background-position: 0% 50%;
+  }
+
+  /* Live booking card: static glows, no floating. */
+  .hero-console .drift,
+  .hero-console .float-slow,
+  .hero-console .float-slow-reverse {
+    animation: none;
+  }
+  .float-slow,
+  .float-slow-reverse,
+  .drift {
+    will-change: auto;
+  }
+
+  .site-header {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: rgb(255 255 255 / 0.97);
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Reduced motion                                                      */
 /* ------------------------------------------------------------------ */
 

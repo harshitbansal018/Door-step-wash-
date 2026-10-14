@@ -257,8 +257,33 @@ export interface WorkerMe {
   hasKycDocument: boolean;
 }
 
+export type JobIssueReason = "customer_unavailable" | "no_water" | "no_access" | "vehicle_not_found" | "unsafe_location" | "other";
+
+export const JOB_ISSUE_OPTIONS: { id: JobIssueReason; label: string; hint: string }[] = [
+  { id: "customer_unavailable", label: "Customer not available", hint: "Nobody to unlock the car or hand over keys" },
+  { id: "no_water", label: "No water access", hint: "No tap or water source near the vehicle" },
+  { id: "no_access", label: "Can't reach the vehicle", hint: "Gate, guard or parking blocked entry" },
+  { id: "vehicle_not_found", label: "Vehicle not found", hint: "Car not at the given spot or plate doesn't match" },
+  { id: "unsafe_location", label: "Unsafe location", hint: "Traffic, flooding or other safety risk" },
+  { id: "other", label: "Other problem", hint: "Describe it in the note" },
+];
+
 export interface WorkerJob extends Booking {
   checklist: string[];
   earning: number;
+  notes?: string | null;
+  durationMin?: number;
+  arrivedAt?: string | null;
+  assignedAt?: string | null;
+  hasOpenIssue?: boolean;
   photos?: { id: string; kind: "before" | "after"; url: string | null }[];
+  issues?: { id: string; reason: JobIssueReason; label: string; note: string | null; resolved: boolean; createdAt: string }[];
+  maxPhotosPerKind?: number;
+}
+
+export interface WorkerToday {
+  stats: { earnedToday: number; completedToday: number; rating: number; jobsDone: number; isOnline: boolean; status: WorkerStatus };
+  requests: WorkerJob[];
+  upcoming: WorkerJob[];
+  completedToday: WorkerJob[];
 }

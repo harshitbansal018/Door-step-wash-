@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Tag, Trash2 } from "lucide-react";
+import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import type { City } from "@/lib/domain";
 import { formatMoney } from "@/lib/utils";
@@ -133,6 +134,7 @@ function OfferFields({ draft, cities, services, onChange }: { draft: Draft; citi
 
 export default function AdminOffersPage() {
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [page, setPage] = useState(1); const [total, setTotal] = useState(0);
   const [cities, setCities] = useState<City[]>([]);
   const [services, setServices] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,11 +148,12 @@ export default function AdminOffersPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [offerRows, cityRows] = await Promise.all([api<Offer[]>("/api/admin/offers"), api<City[]>("/api/admin/cities")]);
+      const [offerRows, cityRows] = await Promise.all([api<{ items: Offer[]; total: number }>(`/api/admin/offers?page=${page}&pageSize=20`), api<City[]>("/api/admin/cities")]);
       const serviceLists = await Promise.all(cityRows.map((city) => api<ServiceOption[]>(`/api/admin/services?cityId=${city.id}`)));
       const uniqueServices = new Map<string, ServiceOption>();
       serviceLists.flat().forEach((service) => uniqueServices.set(service.id, { id: service.id, name: service.name }));
-      setOffers(offerRows);
+      setOffers(offerRows.items);
+      setTotal(offerRows.total);
       setCities(cityRows);
       setServices([...uniqueServices.values()].sort((a, b) => a.name.localeCompare(b.name)));
     } catch (caught) {
@@ -158,7 +161,7 @@ export default function AdminOffersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -217,6 +220,7 @@ export default function AdminOffersPage() {
       const expired = new Date(offer.valid_to) < new Date();
       return <Card key={offer.id} className="p-5"><div className="flex flex-col gap-4 sm:flex-row sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Tag className="size-4 text-brand-600" /><strong>{offer.code}</strong><Badge tone={offer.is_active && !expired ? "green" : "slate"}>{expired ? "Expired" : offer.is_active ? "Active" : "Inactive"}</Badge>{offer.auto_apply && <Badge tone="blue">Automatic</Badge>}</div><p className="mt-2 font-medium text-slate-900">{offer.title}</p><p className="mt-1 text-sm text-slate-500">{offer.discount_type === "flat" ? formatMoney(offer.value) : `${offer.value}%${offer.max_discount ? ` up to ${formatMoney(offer.max_discount)}` : ""}`} off · minimum {formatMoney(offer.min_order)}</p><p className="mt-2 text-xs text-slate-500">Used {offer.used_count}{offer.usage_limit ? ` of ${offer.usage_limit}` : " times"} · {new Date(offer.valid_from).toLocaleDateString("en-IN")}–{new Date(offer.valid_to).toLocaleDateString("en-IN")}</p><p className="mt-1 text-xs text-slate-500">{offer.city_ids.length ? `${offer.city_ids.length} selected cit${offer.city_ids.length === 1 ? "y" : "ies"}` : "All cities"} · {offer.service_ids.length ? `${offer.service_ids.length} selected service${offer.service_ids.length === 1 ? "" : "s"}` : "All services"}</p></div><div className="flex shrink-0 flex-wrap items-center gap-2"><Toggle checked={offer.is_active} onChange={(value) => void toggle(offer, value)} label={`Toggle ${offer.code}`} /><Button size="sm" variant="secondary" disabled={saving} onClick={() => openEdit(offer)}><Pencil className="size-4" />Edit</Button><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" disabled={saving} onClick={() => setDeleting(offer)}><Trash2 className="size-4" />Delete</Button></div></div></Card>;
     })}</div>}
+    <Pagination page={page} pageSize={20} total={total} onChange={setPage} disabled={loading} className="mt-4 px-0" />
 
     <Modal open={!!editing} onClose={() => setEditing(null)} size="lg" title={editing === "new" ? "Add offer" : `Edit ${editing?.code ?? "offer"}`} description="Control eligibility, discount rules and availability." footer={<><Button variant="secondary" onClick={() => setEditing(null)}>Cancel</Button><Button disabled={saving || !valid} onClick={saveOffer}>{saving && <Loader2 className="size-4 animate-spin" />}{editing === "new" ? "Create offer" : "Save changes"}</Button></>}><OfferFields draft={draft} cities={cities} services={services} onChange={(patch) => setDraft((old) => ({ ...old, ...patch }))} /></Modal>
 

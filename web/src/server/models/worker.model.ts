@@ -20,11 +20,23 @@ export const workerModel = {
     return check(await db.from("workers").select(WITH_PROFILE).eq("id", id).maybeSingle()) as WorkerWithProfile | null;
   },
 
-  async list(db: Db, filter: { cityId?: string; status?: WorkerRow["status"] } = {}) {
-    let q = db.from("workers").select(WITH_PROFILE).order("created_at", { ascending: false });
+  async list(db: Db, filter: { cityId?: string; status?: WorkerRow["status"]; from: number; to: number }) {
+    let q = db.from("workers").select(WITH_PROFILE, { count: "exact" }).order("created_at", { ascending: false });
     if (filter.cityId) q = q.eq("city_id", filter.cityId);
     if (filter.status) q = q.eq("status", filter.status);
-    return check(await q) as WorkerWithProfile[];
+    const { data, count, error } = await q.range(filter.from, filter.to);
+    if (error) throw error;
+    return { rows: (data ?? []) as unknown as WorkerWithProfile[], total: count ?? 0 };
+  },
+
+  /** Headline counts across all workers, independent of paging. */
+  async counts(db: Db) {
+    const rows = check(await db.from("workers").select("status, is_online")) as Pick<WorkerRow, "status" | "is_online">[];
+    return {
+      active: rows.filter((w) => w.status === "active").length,
+      online: rows.filter((w) => w.status === "active" && w.is_online).length,
+      pendingKyc: rows.filter((w) => w.status === "pending_kyc").length,
+    };
   },
 
   /** Active workers in an area, online first, then best rated. */

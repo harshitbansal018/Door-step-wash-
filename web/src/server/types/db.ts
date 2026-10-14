@@ -226,6 +226,7 @@ export interface BookingRow {
   worker_id: string | null;
   offer_id: string | null;
   subscription_id: string | null;
+  arrived_at?: string | null;
   status: BookingStatus;
   status_changed_by: string | null;
   slot_date: string;
@@ -300,6 +301,19 @@ export interface EarningRow {
   amount: number;
   status: "pending" | "in_payout" | "paid";
   payout_id: string | null;
+  created_at: string;
+}
+
+export type JobIssueReason = "customer_unavailable" | "no_water" | "no_access" | "vehicle_not_found" | "unsafe_location" | "other";
+
+export interface JobIssueRow {
+  id: string;
+  booking_id: string;
+  worker_id: string;
+  reason: JobIssueReason;
+  note: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
   created_at: string;
 }
 

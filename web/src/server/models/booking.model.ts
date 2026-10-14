@@ -25,6 +25,9 @@ export interface BookingListFilter {
   workerId?: string;
   date?: string;
   search?: string;
+  ids?: string[];
+  /** Oldest first instead of newest first. */
+  ascending?: boolean;
   from: number;
   to: number;
 }
@@ -46,8 +49,12 @@ export const bookingModel = {
     let q = db
       .from("bookings")
       .select(DETAIL, { count: "exact" })
-      .order("slot_date", { ascending: false })
-      .order("slot_start", { ascending: false });
+      .order("slot_date", { ascending: !!f.ascending })
+      .order("slot_start", { ascending: !!f.ascending });
+    if (f.ids) {
+      if (!f.ids.length) return { rows: [] as BookingDetail[], total: 0 };
+      q = q.in("id", f.ids);
+    }
     if (f.status?.length) q = q.in("status", f.status);
     if (f.cityId) q = q.eq("city_id", f.cityId);
     if (f.customerId) q = q.eq("customer_id", f.customerId);

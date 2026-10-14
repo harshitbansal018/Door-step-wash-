@@ -32,8 +32,14 @@ function present(w: WorkerWithProfile) {
 }
 
 export const adminWorkerService = {
-  async list(filter: { cityId?: string; status?: WorkerRow["status"] }) {
-    return (await workerModel.list(createAdminClient(), filter)).map(present);
+  async list(q: { cityId?: string; status?: WorkerRow["status"]; page: number; pageSize: number }) {
+    const from = (q.page - 1) * q.pageSize;
+    const db = createAdminClient();
+    const [{ rows, total }, counts] = await Promise.all([
+      workerModel.list(db, { cityId: q.cityId, status: q.status, from, to: from + q.pageSize - 1 }),
+      workerModel.counts(db),
+    ]);
+    return { items: rows.map(present), page: q.page, pageSize: q.pageSize, total, counts };
   },
 
   /** Creates a confirmed partner login and emails the initial credentials. */

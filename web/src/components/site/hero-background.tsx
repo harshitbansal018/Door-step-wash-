@@ -44,6 +44,23 @@ export function HeroBackground({
   const ref = useRef<HTMLDivElement>(null);
   const dark = tone === "dark";
 
+  // Pause every animation in the hero section (background and anything else in
+  // it, such as the live booking card) while it is off screen, so scrolling the
+  // rest of the page does not pay for animations nobody can see.
+  useEffect(() => {
+    const section = ref.current?.parentElement;
+    if (!section || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) delete section.dataset.paused;
+        else section.dataset.paused = "true";
+      },
+      { rootMargin: "80px 0px" },
+    );
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
+
   // The backdrop ignores pointer events, so listen on the parent section and
   // translate the pointer position into CSS variables for the glow layer.
   useEffect(() => {

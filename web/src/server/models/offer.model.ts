@@ -12,8 +12,19 @@ export const offerModel = {
     return check(await db.from("offers").select("*").eq("id", id).maybeSingle()) as OfferRow | null;
   },
 
-  async list(db: Db): Promise<OfferRow[]> {
+  /** Every offer, for the auto-apply engine. Admin screens use the paged list. */
+  async listAll(db: Db): Promise<OfferRow[]> {
     return check(await db.from("offers").select("*").order("created_at", { ascending: false })) as OfferRow[];
+  },
+
+  async list(db: Db, from: number, to: number) {
+    const { data, count, error } = await db
+      .from("offers")
+      .select("*", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return { rows: (data ?? []) as OfferRow[], total: count ?? 0 };
   },
 
   async insert(db: Db, data: Partial<OfferRow>) {

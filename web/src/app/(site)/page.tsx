@@ -134,9 +134,6 @@ export default async function HomePage() {
                     </span>
                     <h3 className="mt-6 text-lg font-semibold text-slate-900">{step.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-600">{step.body}</p>
-                    <span className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 opacity-0 transition-all duration-300 group-hover:translate-x-1 group-hover:opacity-100">
-                      Simple by design <ArrowRight className="size-4" />
-                    </span>
                   </SpotlightCard>
                 );
               })}

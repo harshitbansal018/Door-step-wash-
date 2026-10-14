@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, FileCheck2, Loader2, Star, Upload, User } from "lucide-react";
+import { CheckCircle2, FileCheck2, Loader2, LogOut, Star, Upload, User } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { api } from "@/lib/api";
 import type { WorkerMe } from "@/lib/domain";
 import { ErrorState, LoadingState } from "@/components/data-state";
@@ -112,6 +113,10 @@ export default function WorkerProfilePage() {
           </div>
         </Card>
       </div>
+
+      <LogoutButton className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-red-600 ring-1 ring-red-200 transition hover:bg-red-50 sm:hidden">
+        <LogOut className="size-4" /> Log out
+      </LogoutButton>
     </>
   );
 }

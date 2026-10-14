@@ -59,7 +59,7 @@ export const offerService = {
 
   /** Best automatically-applied offer for this order, if any. */
   async bestAutomatic(db: Db, ctx: OfferContext) {
-    const offers = (await offerModel.list(db)).filter((o) => o.auto_apply && o.is_active);
+    const offers = (await offerModel.listAll(db)).filter((o) => o.auto_apply && o.is_active);
     let best: { offer: OfferRow; discount: number } | null = null;
     for (const offer of offers) {
       try {

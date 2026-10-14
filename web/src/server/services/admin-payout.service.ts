@@ -6,9 +6,17 @@ import { paymentModel } from "../models/payment.model";
 import type { PayoutRow } from "../types/db";
 
 export const adminPayoutService = {
-  async list(status?: PayoutRow["status"]) {
-    const rows = await earningModel.listPayouts(createAdminClient(), status);
-    return rows.map((p) => ({
+  /** Headline money totals for the Payments page, computed over all rows rather than one page. */
+  async summary() {
+    const db = createAdminClient();
+    const [captured, payouts] = await Promise.all([paymentModel.capturedTotal(db), earningModel.payoutTotals(db)]);
+    return { captured, payoutsPending: payouts.pending, payoutsPaid: payouts.paid };
+  },
+
+  async list(q: { status?: PayoutRow["status"]; page: number; pageSize: number }) {
+    const from = (q.page - 1) * q.pageSize;
+    const { rows, total } = await earningModel.listPayouts(createAdminClient(), { status: q.status, from, to: from + q.pageSize - 1 });
+    const items = rows.map((p) => ({
       id: p.id,
       workerId: p.worker.id,
       workerName: p.worker.profile.full_name,
@@ -20,6 +28,7 @@ export const adminPayoutService = {
       reference: p.reference,
       paidAt: p.paid_at,
     }));
+    return { items, page: q.page, pageSize: q.pageSize, total };
   },
 
   async build() {

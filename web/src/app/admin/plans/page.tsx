@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, Plus, Save, Trash2 } from "lucide-react";
+import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import { type City, SUBSCRIPTION_META, type Subscription, type SubscriptionStatus, VEHICLES, type VehicleType, WEEKDAYS } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -64,6 +65,9 @@ export default function AdminPlansPage() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [subs, setSubs] = useState<SubscriptionList | null>(null);
   const [status, setStatus] = useState<SubscriptionStatus | "">("");
+  const [subPage, setSubPage] = useState(1);
+  const [lastStatus, setLastStatus] = useState(status);
+  if (lastStatus !== status) { setLastStatus(status); setSubPage(1); }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -120,13 +124,13 @@ export default function AdminPlansPage() {
 
   const loadSubs = useCallback(async () => {
     try {
-      const query = new URLSearchParams({ page: "1", pageSize: "50" });
+      const query = new URLSearchParams({ page: String(subPage), pageSize: "25" });
       if (status) query.set("status", status);
       setSubs(await api<SubscriptionList>(`/api/admin/subscriptions?${query}`));
     } catch (caught) {
       fail(caught, "Could not load subscriptions.");
     }
-  }, [status]);
+  }, [status, subPage]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadCities(), 0);
@@ -376,6 +380,7 @@ export default function AdminPlansPage() {
             </table>
           </div>
         )}
+        {subs && <Pagination page={subPage} pageSize={25} total={subs.total} onChange={setSubPage} className="border-t border-slate-200" />}
       </Card>
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Add monthly plan" footer={<><Button variant="secondary" onClick={() => setAdding(false)}>Cancel</Button><Button disabled={saving || newDraft.name.trim().length < 2 || !newDraft.serviceId} onClick={createPlan}>Create plan</Button></>}>

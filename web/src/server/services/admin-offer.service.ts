@@ -29,8 +29,10 @@ function toRow(input: OfferInput): Partial<OfferRow> {
 }
 
 export const adminOfferService = {
-  list() {
-    return offerModel.list(createAdminClient());
+  async list(page: number, pageSize: number) {
+    const from = (page - 1) * pageSize;
+    const { rows, total } = await offerModel.list(createAdminClient(), from, from + pageSize - 1);
+    return { items: rows, page, pageSize, total };
   },
 
   create(adminId: string, input: z.infer<typeof createOfferSchema>) {

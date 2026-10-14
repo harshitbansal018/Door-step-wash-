@@ -127,7 +127,7 @@ export const updateWorkerSchema = z.object({
   phone: phone.optional(),
 });
 
-export const listWorkersQuery = z.object({
+export const listWorkersQuery = pagination.extend({
   cityId: uuid.optional(),
   status: z.enum(["pending_kyc", "active", "suspended"]).optional(),
 });
@@ -194,7 +194,7 @@ export const refundSchema = z.object({
   reason: z.string().trim().min(3).max(300),
 });
 
-export const payoutsQuery = z.object({ status: z.enum(["pending", "paid"]).optional() });
+export const payoutsQuery = pagination.extend({ status: z.enum(["pending", "paid"]).optional() });
 
 export const markPayoutPaidSchema = z.object({ reference: z.string().trim().min(4).max(60) });
 

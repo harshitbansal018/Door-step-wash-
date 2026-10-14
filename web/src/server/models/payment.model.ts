@@ -73,6 +73,14 @@ export const paymentModel = {
     return { rows: data ?? [], total: count ?? 0 };
   },
 
+  /** Total captured across all payments, independent of paging. */
+  async capturedTotal(db: Db) {
+    const rows = check(
+      await db.from("payments").select("amount").in("status", ["captured", "partially_refunded"]),
+    ) as { amount: number }[];
+    return rows.reduce((s, r) => s + r.amount, 0);
+  },
+
   async insertRefund(db: Db, data: Partial<RefundRow>) {
     return check(await db.from("refunds").insert(data).select("*").single()) as RefundRow;
   },

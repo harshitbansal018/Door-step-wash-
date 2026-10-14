@@ -70,6 +70,23 @@ export const notificationService = {
     );
   },
 
+  /** Tells the support inbox that a partner hit a problem on site. Skipped when no support email is set. */
+  jobIssueReported(i: { code: string; worker: string; reason: string; note: string | null; when: string; address: string }) {
+    if (!BRAND.email) return Promise.resolve();
+    return sendEmail(
+      BRAND.email,
+      `Problem reported on ${i.code}`,
+      layout(
+        "A partner reported a problem",
+        p(`<b>${escape(i.worker)}</b> reported <b>${escape(i.reason)}</b> on booking <b>${escape(i.code)}</b> (${escape(i.when)}).`) +
+          p(`Address: ${escape(i.address)}`) +
+          (i.note ? p(`Note: ${escape(i.note)}`) : "") +
+          p("Contact the customer to reschedule or cancel the booking.") +
+          button(`${env().NEXT_PUBLIC_SITE_URL}/admin/bookings`, "Open bookings"),
+      ),
+    );
+  },
+
   workerAssigned(b: BookingEmailInfo & { workerName: string }) {
     return sendEmail(
       b.to,

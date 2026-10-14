@@ -1,10 +1,11 @@
 import "server-only";
+import { z } from "zod";
 import { badRequest } from "../lib/errors";
 import { withAuth } from "../middlewares/auth.middleware";
 import { created, ok } from "../lib/response";
 import { workerService } from "../services/worker.service";
-import { readJson, uuid } from "../validators/common";
-import { onlineSchema, photoKindSchema, progressSchema, respondSchema } from "../validators/worker.validator";
+import { pagination, readJson, readQuery, uuid } from "../validators/common";
+import { issueSchema, jobHistoryQuery, onlineSchema, photoKindSchema, progressSchema, respondSchema } from "../validators/worker.validator";
 
 type IdParams = { id: string };
 
@@ -24,6 +25,14 @@ export const workerController = {
   }),
 
   jobs: withAuth(["worker"], async (_req, auth) => ok(await workerService.jobs(auth))),
+
+  history: withAuth(["worker"], async (req, auth) => ok(await workerService.history(auth, readQuery(req, jobHistoryQuery)))),
+
+  arrive: withAuth<IdParams>(["worker"], async (_req, auth, { id }) => ok(await workerService.arrive(auth, uuid.parse(id)))),
+
+  reportIssue: withAuth<IdParams>(["worker"], async (req, auth, { id }) =>
+    created(await workerService.reportIssue(auth, uuid.parse(id), await readJson(req, issueSchema))),
+  ),
 
   job: withAuth<IdParams>(["worker"], async (_req, auth, { id }) => ok(await workerService.job(auth, uuid.parse(id)))),
 
@@ -46,5 +55,8 @@ export const workerController = {
     return created(await workerService.uploadPhoto(auth, uuid.parse(id), kind, file));
   }),
 
-  earnings: withAuth(["worker"], async (_req, auth) => ok(await workerService.earnings(auth))),
+  earnings: withAuth(["worker"], async (req, auth) => {
+    const q = readQuery(req, pagination.extend({ payoutPage: z.coerce.number().int().min(1).default(1) }));
+    return ok(await workerService.earnings(auth, q));
+  }),
 };

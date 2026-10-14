@@ -4,15 +4,40 @@ import type { Db } from "../lib/supabase";
 import type { EarningRow, PayoutRow } from "../types/db";
 
 export const earningModel = {
-  async listForWorker(db: Db, workerId: string, limit = 50) {
-    return check(
-      await db
-        .from("worker_earnings")
-        .select("*, booking:bookings!inner(code, slot_date, service:services!inner(name))")
-        .eq("worker_id", workerId)
-        .order("created_at", { ascending: false })
-        .limit(limit),
-    ) as (EarningRow & { booking: { code: string; slot_date: string; service: { name: string } } })[];
+  async listForWorker(db: Db, workerId: string, from: number, to: number) {
+    const { data, count, error } = await db
+      .from("worker_earnings")
+      .select("*, booking:bookings!inner(code, slot_date, service:services!inner(name))", { count: "exact" })
+      .eq("worker_id", workerId)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return {
+      rows: (data ?? []) as (EarningRow & { booking: { code: string; slot_date: string; service: { name: string } } })[],
+      total: count ?? 0,
+    };
+  },
+
+  /** Sum of payouts by status, optionally for one worker. Used for headline totals that must not depend on paging. */
+  async payoutTotals(db: Db, workerId?: string) {
+    let q = db.from("payouts").select("total, status");
+    if (workerId) q = q.eq("worker_id", workerId);
+    const rows = check(await q) as { total: number; status: PayoutRow["status"] }[];
+    return rows.reduce(
+      (acc, r) => {
+        acc[r.status] += r.total;
+        return acc;
+      },
+      { pending: 0, paid: 0 } as Record<PayoutRow["status"], number>,
+    );
+  },
+
+  /** What a worker earned from jobs completed since the given instant (start of their day). */
+  async earnedSince(db: Db, workerId: string, sinceIso: string) {
+    const rows = check(
+      await db.from("worker_earnings").select("amount").eq("worker_id", workerId).gte("created_at", sinceIso),
+    ) as { amount: number }[];
+    return rows.reduce((s, r) => s + r.amount, 0);
   },
 
   async unpaidTotal(db: Db, workerId: string) {
@@ -22,21 +47,31 @@ export const earningModel = {
     return rows.reduce((s, r) => s + r.amount, 0);
   },
 
-  async payoutsForWorker(db: Db, workerId: string): Promise<PayoutRow[]> {
-    return check(
-      await db.from("payouts").select("*").eq("worker_id", workerId).order("period_start", { ascending: false }),
-    ) as PayoutRow[];
+  async payoutsForWorker(db: Db, workerId: string, from: number, to: number) {
+    const { data, count, error } = await db
+      .from("payouts")
+      .select("*", { count: "exact" })
+      .eq("worker_id", workerId)
+      .order("period_start", { ascending: false })
+      .range(from, to);
+    if (error) throw error;
+    return { rows: (data ?? []) as PayoutRow[], total: count ?? 0 };
   },
 
-  async listPayouts(db: Db, status?: PayoutRow["status"]) {
+  async listPayouts(db: Db, opts: { status?: PayoutRow["status"]; from: number; to: number }) {
     let q = db
       .from("payouts")
-      .select("*, worker:workers!inner(id, bank_last4, profile:profiles!inner(full_name, email))")
+      .select("*, worker:workers!inner(id, bank_last4, profile:profiles!inner(full_name, email))", { count: "exact" })
       .order("period_start", { ascending: false });
-    if (status) q = q.eq("status", status);
-    return check(await q) as (PayoutRow & {
-      worker: { id: string; bank_last4: string | null; profile: { full_name: string; email: string } };
-    })[];
+    if (opts.status) q = q.eq("status", opts.status);
+    const { data, count, error } = await q.range(opts.from, opts.to);
+    if (error) throw error;
+    return {
+      rows: (data ?? []) as unknown as (PayoutRow & {
+        worker: { id: string; bank_last4: string | null; profile: { full_name: string; email: string } };
+      })[],
+      total: count ?? 0,
+    };
   },
 
   async markPayoutPaid(db: Db, id: string, reference: string, paidBy: string) {

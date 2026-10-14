@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CalendarDays, Eye, Loader2, MapPin, Star, XCircle } from "lucide-react";
+import { Pagination } from "@/components/pagination";
 import { ApiError, api } from "@/lib/api";
 import type { Booking, BookingDetails, Slot } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -14,6 +15,9 @@ type Action = { kind: "cancel" | "review" | "reschedule"; booking: Booking } | n
 
 export default function BookingsPage() {
   const [scope, setScope] = useState<"upcoming" | "past" | "all">("all");
+  const [page, setPage] = useState(1);
+  const [lastScope, setLastScope] = useState(scope);
+  if (lastScope !== scope) { setLastScope(scope); setPage(1); }
   const [data, setData] = useState<BookingList | null>(null);
   const [error, setError] = useState(""); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
   const [action, setAction] = useState<Action>(null); const [reason, setReason] = useState(""); const [rating, setRating] = useState("5"); const [comment, setComment] = useState("");
@@ -22,10 +26,10 @@ export default function BookingsPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
-    try { setData(await api<BookingList>(`/api/bookings?scope=${scope}&page=1&pageSize=50`)); }
+    try { setData(await api<BookingList>(`/api/bookings?scope=${scope}&page=${page}&pageSize=10`)); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load bookings."); }
     finally { setLoading(false); }
-  }, [scope]);
+  }, [scope, page]);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
@@ -67,7 +71,7 @@ export default function BookingsPage() {
         <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-slate-900">{booking.code} · {booking.service.name}</h2><StatusBadge status={booking.status} />{booking.subscriptionId && <Badge tone="violet">Plan</Badge>}</div><p className="mt-2 flex items-center gap-2 text-sm text-slate-600"><CalendarDays className="size-4 shrink-0" />{formatDate(booking.slot.date)}, {booking.slot.start}–{booking.slot.end}</p><p className="mt-1 flex items-center gap-2 text-sm text-slate-600"><MapPin className="size-4 shrink-0" /><span className="truncate">{booking.address.line}, {booking.area}, {booking.city}</span></p><p className="mt-1 text-sm text-slate-500">{booking.vehicle.makeModel} · {booking.vehicle.plate}</p>{booking.worker && <p className="mt-2 text-sm">Worker: <strong>{booking.worker.name}</strong>{booking.worker.phone ? ` · ${booking.worker.phone}` : ""}</p>}{booking.cancelledReason && <p className="mt-2 text-sm text-red-600">{booking.cancelledReason}</p>}</div>
         <div className="shrink-0 text-left sm:text-right"><p className="text-lg font-bold">{booking.subscriptionId ? "Prepaid" : formatMoney(booking.price.total)}</p><div className="mt-3 flex flex-wrap gap-2 sm:justify-end"><Button size="sm" variant="ghost" onClick={() => openDetails(booking)}><Eye className="size-4" />Details</Button>{["confirmed", "assigned", "accepted"].includes(booking.status) && <Button size="sm" variant="secondary" onClick={() => setAction({ kind: "reschedule", booking })}>Reschedule</Button>}{["pending_payment", "confirmed", "assigned", "accepted"].includes(booking.status) && <Button size="sm" variant="danger" onClick={() => setAction({ kind: "cancel", booking })}><XCircle className="size-4" />Cancel</Button>}{booking.status === "completed" && <Button size="sm" variant="secondary" onClick={() => setAction({ kind: "review", booking })}><Star className="size-4" />Rate</Button>}</div></div>
       </div>
-    </Card>)}</div>}
+    </Card>)}<Pagination page={page} pageSize={10} total={data.total} onChange={(next) => { setPage(next); window.scrollTo({ top: 0, behavior: "smooth" }); }} disabled={loading} className="rounded-xl bg-white px-4 ring-1 ring-slate-200" /></div>}
     {error && !data && !loading && <ErrorState message={error} retry={load} />}
 
     <Modal open={!!viewing} onClose={closeDetails} size="lg" title={`Booking ${viewing?.code ?? "details"}`} description="Everything about this doorstep wash." footer={<Button variant="secondary" onClick={closeDetails}>Close</Button>}>{detailLoading ? <LoadingState rows={4} label="Loading booking details…" /> : detail ? <CustomerBookingDetails booking={detail} /> : null}</Modal>

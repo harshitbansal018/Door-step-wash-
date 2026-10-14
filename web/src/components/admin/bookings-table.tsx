@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CalendarDays, Car, CreditCard, Download, Eye, Loader2, MapPin, Search, Star, UserPlus, XCircle } from "lucide-react";
+import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import type { Booking, BookingStatus, City } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
@@ -59,6 +60,10 @@ export function BookingsTable({ initialStatus }: { initialStatus: string }) {
   const [rows, setRows] = useState<Booking[]>([]); const [cities, setCities] = useState<City[]>([]);
   const [tab, setTab] = useState(TABS.some((item) => item.id === initialStatus) ? initialStatus : "all");
   const [cityId, setCityId] = useState(""); const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1); const [total, setTotal] = useState(0);
+  // Any filter change goes back to the first page.
+  const filterKey = `${tab}|${cityId}|${query.trim()}`; const [lastFilter, setLastFilter] = useState(filterKey);
+  if (lastFilter !== filterKey) { setLastFilter(filterKey); setPage(1); }
   const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
   const [assigning, setAssigning] = useState<Booking | null>(null); const [candidates, setCandidates] = useState<Candidate[]>([]); const [workerId, setWorkerId] = useState("");
   const [cancelling, setCancelling] = useState<Booking | null>(null); const [reason, setReason] = useState(""); const [refund, setRefund] = useState(true);
@@ -67,12 +72,12 @@ export function BookingsTable({ initialStatus }: { initialStatus: string }) {
   const load = useCallback(async () => {
     setLoading(true); setError("");
     const selected = TABS.find((item) => item.id === tab);
-    const params = new URLSearchParams({ page: "1", pageSize: "100" });
+    const params = new URLSearchParams({ page: String(page), pageSize: "25" });
     if (selected?.statuses) params.set("status", selected.statuses.join(",")); if (cityId) params.set("cityId", cityId); if (query.trim()) params.set("search", query.trim());
-    try { const [bookings, cityRows] = await Promise.all([api<BookingList>(`/api/admin/bookings?${params}`), api<City[]>("/api/admin/cities")]); setRows(bookings.items); setCities(cityRows); }
+    try { const [bookings, cityRows] = await Promise.all([api<BookingList>(`/api/admin/bookings?${params}`), api<City[]>("/api/admin/cities")]); setRows(bookings.items); setTotal(bookings.total); setCities(cityRows); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load bookings."); }
     finally { setLoading(false); }
-  }, [tab, cityId, query]);
+  }, [tab, cityId, query, page]);
   useEffect(() => { const timer = setTimeout(() => void load(), 250); return () => clearTimeout(timer); }, [load]);
 
   async function viewDetails(booking: Booking) { setViewing(booking); setDetail(null); setDetailLoading(true); setError(""); try { setDetail(await api<BookingDetail>(`/api/admin/bookings/${booking.id}`)); } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load booking details."); setViewing(null); } finally { setDetailLoading(false); } }
@@ -89,6 +94,7 @@ export function BookingsTable({ initialStatus }: { initialStatus: string }) {
     <Card className="overflow-hidden">
       <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:justify-between"><div className="scroll-slim flex gap-1 overflow-x-auto">{TABS.map((item) => <button key={item.id} onClick={() => setTab(item.id)} className={`rounded-lg px-3 py-2 text-sm font-medium ${tab === item.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{item.label}</button>)}</div><div className="flex gap-2"><div className="relative flex-1"><Search className="absolute top-3 left-3 size-4 text-slate-400" /><Input aria-label="Search bookings" className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Code, customer, phone, plate" /></div><Select aria-label="City" value={cityId} onChange={(event) => setCityId(event.target.value)}><option value="">All cities</option>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</Select></div></div>
       {loading ? <LoadingState /> : !rows.length ? <div className="p-5"><EmptyState title="No bookings" description={`No ${activeTab?.label.toLowerCase()} bookings match these filters.`} /></div> : <div className="scroll-slim overflow-x-auto"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="px-5 py-3">Booking</th><th className="px-5 py-3">Customer</th><th className="px-5 py-3">Vehicle & service</th><th className="px-5 py-3">Location</th><th className="px-5 py-3">Worker</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Amount</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((booking) => <tr key={booking.id} className="transition hover:bg-slate-50/70"><td className="px-5 py-4"><strong>{booking.code}</strong><span className="block text-xs text-slate-500">{formatDate(booking.slot.date)} · {booking.slot.start}</span></td><td className="px-5 py-4">{booking.contact.name}<span className="block text-xs text-slate-500">{booking.contact.phone}</span></td><td className="px-5 py-4">{booking.service.name}<span className="block text-xs text-slate-500">{booking.vehicle.makeModel} · {booking.vehicle.plate}</span></td><td className="px-5 py-4">{booking.area}<span className="block text-xs text-slate-500">{booking.city}</span></td><td className="px-5 py-4">{booking.worker ? <div className="flex items-center gap-2"><Avatar name={booking.worker.name} className="size-7" />{booking.worker.name}</div> : booking.status === "confirmed" ? <Button size="sm" onClick={() => openAssign(booking)}><UserPlus className="size-4" />Assign</Button> : "—"}</td><td className="px-5 py-4"><StatusBadge status={booking.status} /></td><td className="px-5 py-4 text-right font-semibold">{formatMoney(booking.price.total)}</td><td className="px-5 py-4"><div className="flex justify-end gap-1"><Button size="sm" variant="ghost" onClick={() => viewDetails(booking)}><Eye className="size-4" />View</Button>{CANCELLABLE.includes(booking.status) && <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setCancelling(booking)}><XCircle className="size-4" />Cancel</Button>}</div></td></tr>)}</tbody></table></div>}
+      <Pagination page={page} pageSize={25} total={total} onChange={setPage} disabled={loading} className="border-t border-slate-200" />
     </Card>
     <Modal open={!!viewing} onClose={closeDetails} size="lg" title={`Booking ${viewing?.code ?? "details"}`} description="Complete customer, service, payment and fulfilment information." footer={<Button variant="secondary" onClick={closeDetails}>Close</Button>}>{detailLoading ? <LoadingState rows={4} label="Loading booking details…" /> : detail ? <BookingDetails booking={detail} /> : null}</Modal>
     <Modal open={!!assigning} onClose={() => setAssigning(null)} title={`Assign ${assigning?.code ?? "booking"}`} footer={<><Button variant="secondary" onClick={() => setAssigning(null)}>Close</Button><Button disabled={!workerId || saving} onClick={assign}>{saving && <Loader2 className="size-4 animate-spin" />}Assign</Button></>}><div className="space-y-2">{candidates.map((worker) => <label key={worker.id} className={`flex cursor-pointer items-center gap-3 rounded-lg p-3 ring-1 ${workerId === worker.id ? "bg-brand-50 ring-2 ring-brand-600" : "ring-slate-200"}`}><input type="radio" name="worker" value={worker.id} checked={workerId === worker.id} onChange={() => setWorkerId(worker.id)} /><Avatar name={worker.name} /><span className="flex-1"><strong>{worker.name}</strong><span className="block text-xs text-slate-500">{worker.jobsDone} jobs · {worker.isOnline ? "Online" : "Offline"}</span></span><span className="flex items-center gap-1"><Star className="size-4 fill-amber-400 text-amber-400" />{worker.rating}</span></label>)}{!candidates.length && <p className="text-sm text-slate-500">No active workers are available in this area.</p>}</div></Modal>
