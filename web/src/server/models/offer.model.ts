@@ -17,12 +17,15 @@ export const offerModel = {
     return check(await db.from("offers").select("*").order("created_at", { ascending: false })) as OfferRow[];
   },
 
-  async list(db: Db, from: number, to: number) {
-    const { data, count, error } = await db
-      .from("offers")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, to);
+  async list(db: Db, from: number, to: number, f: { search?: string; state?: "active" | "scheduled" | "expired" | "inactive" } = {}) {
+    const now = new Date().toISOString();
+    let q = db.from("offers").select("*", { count: "exact" }).order("created_at", { ascending: false });
+    if (f.search) q = q.or(`code.ilike.%${f.search}%,title.ilike.%${f.search}%`);
+    if (f.state === "active") q = q.eq("is_active", true).lte("valid_from", now).gt("valid_to", now);
+    if (f.state === "scheduled") q = q.eq("is_active", true).gt("valid_from", now);
+    if (f.state === "expired") q = q.lte("valid_to", now);
+    if (f.state === "inactive") q = q.eq("is_active", false);
+    const { data, count, error } = await q.range(from, to);
     if (error) throw error;
     return { rows: (data ?? []) as OfferRow[], total: count ?? 0 };
   },
@@ -47,6 +50,19 @@ export const offerModel = {
 
   async delete(db: Db, id: string) {
     check(await db.from("offers").delete().eq("id", id));
+  },
+
+  /** Records one use atomically; returns false if it was already recorded. */
+  async recordUsage(db: Db, u: { offerId: string; userId: string; bookingId?: string; subscriptionPaymentId?: string; discount: number }) {
+    return check(
+      await db.rpc("record_offer_usage", {
+        p_offer_id: u.offerId,
+        p_user_id: u.userId,
+        p_booking_id: u.bookingId ?? null,
+        p_subscription_payment_id: u.subscriptionPaymentId ?? null,
+        p_discount: u.discount,
+      }),
+    ) as boolean;
   },
 
   async usageCountForUser(db: Db, offerId: string, userId: string) {

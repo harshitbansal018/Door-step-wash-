@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, Plus, Save, Trash2 } from "lucide-react";
+import { FilterBar, SearchBox, useDebounced } from "@/components/filters";
 import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import { type City, SUBSCRIPTION_META, type Subscription, type SubscriptionStatus, VEHICLES, type VehicleType, WEEKDAYS } from "@/lib/domain";
@@ -66,8 +67,12 @@ export default function AdminPlansPage() {
   const [subs, setSubs] = useState<SubscriptionList | null>(null);
   const [status, setStatus] = useState<SubscriptionStatus | "">("");
   const [subPage, setSubPage] = useState(1);
-  const [lastStatus, setLastStatus] = useState(status);
-  if (lastStatus !== status) { setLastStatus(status); setSubPage(1); }
+  const [subSearch, setSubSearch] = useState("");
+  const [subCity, setSubCity] = useState("");
+  const subQ = useDebounced(subSearch.trim());
+  const subKey = `${status}|${subQ}|${subCity}`;
+  const [lastStatus, setLastStatus] = useState(subKey);
+  if (lastStatus !== subKey) { setLastStatus(subKey); setSubPage(1); }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
@@ -126,11 +131,13 @@ export default function AdminPlansPage() {
     try {
       const query = new URLSearchParams({ page: String(subPage), pageSize: "25" });
       if (status) query.set("status", status);
+      if (subQ) query.set("search", subQ);
+      if (subCity) query.set("cityId", subCity);
       setSubs(await api<SubscriptionList>(`/api/admin/subscriptions?${query}`));
     } catch (caught) {
       fail(caught, "Could not load subscriptions.");
     }
-  }, [status, subPage]);
+  }, [status, subPage, subQ, subCity]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadCities(), 0);
@@ -341,6 +348,13 @@ export default function AdminPlansPage() {
             </div>
           }
         />
+        <FilterBar className="border-b border-slate-200 px-5 py-3">
+          <SearchBox value={subSearch} onChange={setSubSearch} label="Search subscriptions" placeholder="Plan code, customer, phone or plate" />
+          <Select aria-label="City" className="sm:w-44" value={subCity} onChange={(event) => setSubCity(event.target.value)}>
+            <option value="">All cities</option>
+            {cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}
+          </Select>
+        </FilterBar>
         {!subs ? (
           <div className="p-5"><LoadingState rows={2} /></div>
         ) : !subs.items.length ? (

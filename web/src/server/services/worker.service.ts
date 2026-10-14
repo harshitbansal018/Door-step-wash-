@@ -1,7 +1,7 @@
 import "server-only";
 import { conflict, forbidden, notFound, unprocessable } from "../lib/errors";
 import { createAdminClient } from "../lib/supabase";
-import { formatSlot, todayIn, zonedToUtc } from "../lib/time";
+import { addDays, formatSlot, todayIn, zonedToUtc } from "../lib/time";
 import type { AuthContext } from "../middlewares/auth.middleware";
 import { bookingModel, type BookingDetail } from "../models/booking.model";
 import { earningModel } from "../models/earning.model";
@@ -147,7 +147,7 @@ export const workerService = {
   },
 
   /** Paged job lists for the Jobs tab: upcoming (soonest first), completed (latest first), or jobs with an open problem. */
-  async history(auth: AuthContext, q: { scope: "upcoming" | "completed" | "problem"; page: number; pageSize: number }) {
+  async history(auth: AuthContext, q: { scope: "upcoming" | "completed" | "problem"; date?: string; search?: string; page: number; pageSize: number }) {
     const worker = await accessibleWorker(auth);
     const db = createAdminClient();
     const from = (q.page - 1) * q.pageSize;
@@ -158,7 +158,14 @@ export const workerService = {
         : q.scope === "completed"
           ? { status: ["completed"] as BookingStatus[] }
           : { ids: openIssues };
-    const { rows, total } = await bookingModel.list(db, { workerId: auth.userId, ...filter, from, to: from + q.pageSize - 1 });
+    const { rows, total } = await bookingModel.list(db, {
+      workerId: auth.userId,
+      ...filter,
+      date: q.date,
+      search: q.search,
+      from,
+      to: from + q.pageSize - 1,
+    });
     const issues = new Set(openIssues);
     const rate = Number(worker.commission_rate);
     return {
@@ -329,20 +336,43 @@ export const workerService = {
     }
   },
 
-  async earnings(auth: AuthContext, q: { page: number; pageSize: number; payoutPage: number }) {
+  async earnings(
+    auth: AuthContext,
+    q: { page: number; pageSize: number; payoutPage: number; range: "all" | "week" | "month" | "custom"; from?: string; to?: string },
+  ) {
     await accessibleWorker(auth);
     const db = createAdminClient();
+    const tz = "Asia/Kolkata";
+    const today = todayIn(tz);
+    // Range as [since, until) instants in IST. Week starts Monday.
+    let sinceDate: string | undefined;
+    let untilDate: string | undefined;
+    if (q.range === "week") {
+      const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
+      sinceDate = addDays(today, -((dow + 6) % 7));
+    } else if (q.range === "month") {
+      sinceDate = `${today.slice(0, 8)}01`;
+    } else if (q.range === "custom") {
+      sinceDate = q.from;
+      untilDate = q.to ? addDays(q.to, 1) : undefined;
+    }
+    const since = sinceDate ? zonedToUtc(sinceDate, "00:00", tz).toISOString() : undefined;
+    const until = untilDate ? zonedToUtc(untilDate, "00:00", tz).toISOString() : undefined;
+
     const earnFrom = (q.page - 1) * q.pageSize;
     const payFrom = (q.payoutPage - 1) * q.pageSize;
-    const [unpaid, totals, recent, payouts] = await Promise.all([
+    const [unpaid, totals, rangeTotal, recent, payouts] = await Promise.all([
       earningModel.unpaidTotal(db, auth.userId),
       earningModel.payoutTotals(db, auth.userId),
-      earningModel.listForWorker(db, auth.userId, earnFrom, earnFrom + q.pageSize - 1),
+      earningModel.earnedBetween(db, auth.userId, since, until),
+      earningModel.listForWorker(db, auth.userId, earnFrom, earnFrom + q.pageSize - 1, { since, until }),
       earningModel.payoutsForWorker(db, auth.userId, payFrom, payFrom + q.pageSize - 1),
     ]);
     return {
       unpaid,
       paidTotal: totals.paid,
+      rangeTotal,
+      rangeJobs: recent.total,
       recentPage: { page: q.page, pageSize: q.pageSize, total: recent.total },
       payoutPage: { page: q.payoutPage, pageSize: q.pageSize, total: payouts.total },
       recent: recent.rows.map((e) => ({

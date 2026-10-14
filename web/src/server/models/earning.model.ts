@@ -4,13 +4,15 @@ import type { Db } from "../lib/supabase";
 import type { EarningRow, PayoutRow } from "../types/db";
 
 export const earningModel = {
-  async listForWorker(db: Db, workerId: string, from: number, to: number) {
-    const { data, count, error } = await db
+  async listForWorker(db: Db, workerId: string, from: number, to: number, range: { since?: string; until?: string } = {}) {
+    let q = db
       .from("worker_earnings")
       .select("*, booking:bookings!inner(code, slot_date, service:services!inner(name))", { count: "exact" })
       .eq("worker_id", workerId)
-      .order("created_at", { ascending: false })
-      .range(from, to);
+      .order("created_at", { ascending: false });
+    if (range.since) q = q.gte("created_at", range.since);
+    if (range.until) q = q.lt("created_at", range.until);
+    const { data, count, error } = await q.range(from, to);
     if (error) throw error;
     return {
       rows: (data ?? []) as (EarningRow & { booking: { code: string; slot_date: string; service: { name: string } } })[],
@@ -30,6 +32,15 @@ export const earningModel = {
       },
       { pending: 0, paid: 0 } as Record<PayoutRow["status"], number>,
     );
+  },
+
+  /** Sum of a worker's earnings in [since, until). */
+  async earnedBetween(db: Db, workerId: string, since?: string, until?: string) {
+    let q = db.from("worker_earnings").select("amount").eq("worker_id", workerId);
+    if (since) q = q.gte("created_at", since);
+    if (until) q = q.lt("created_at", until);
+    const rows = check(await q) as { amount: number }[];
+    return rows.reduce((s, r) => s + r.amount, 0);
   },
 
   /** What a worker earned from jobs completed since the given instant (start of their day). */
@@ -58,12 +69,13 @@ export const earningModel = {
     return { rows: (data ?? []) as PayoutRow[], total: count ?? 0 };
   },
 
-  async listPayouts(db: Db, opts: { status?: PayoutRow["status"]; from: number; to: number }) {
+  async listPayouts(db: Db, opts: { status?: PayoutRow["status"]; search?: string; from: number; to: number }) {
     let q = db
       .from("payouts")
       .select("*, worker:workers!inner(id, bank_last4, profile:profiles!inner(full_name, email))", { count: "exact" })
       .order("period_start", { ascending: false });
     if (opts.status) q = q.eq("status", opts.status);
+    if (opts.search) q = q.ilike("worker.profile.full_name", `%${opts.search}%`);
     const { data, count, error } = await q.range(opts.from, opts.to);
     if (error) throw error;
     return {

@@ -122,7 +122,8 @@ export const subscriptionModel = {
   // ------------------------------------------------------------ payments
   async insertPayment(
     db: Db,
-    data: Pick<SubscriptionPaymentRow, "subscription_id" | "provider_order_id" | "amount" | "currency" | "period_start" | "period_end">,
+    data: Pick<SubscriptionPaymentRow, "subscription_id" | "provider_order_id" | "amount" | "currency" | "period_start" | "period_end"> &
+      Partial<Pick<SubscriptionPaymentRow, "offer_id" | "discount">>,
   ): Promise<SubscriptionPaymentRow> {
     return check(await db.from("subscription_payments").insert(data).select("*").single()) as SubscriptionPaymentRow;
   },

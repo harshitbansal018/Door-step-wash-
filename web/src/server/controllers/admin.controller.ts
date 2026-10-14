@@ -28,6 +28,8 @@ import {
   listUsersQuery,
   listWorkersQuery,
   markPayoutPaidSchema,
+  offersQuery,
+  transactionsQuery,
   payoutsQuery,
   pricesQuery,
   refundSchema,
@@ -40,7 +42,7 @@ import {
   updateUserSchema,
   updateWorkerSchema,
 } from "../validators/admin.validator";
-import { pagination, readJson, readQuery, uuid } from "../validators/common";
+import { readJson, readQuery, uuid } from "../validators/common";
 import { createPlanSchema, listSubscriptionsQuery, planPricesQuery, setPlanPricesSchema, updatePlanSchema } from "../validators/plan.validator";
 
 type IdParams = { id: string };
@@ -149,8 +151,8 @@ export const adminController = {
 
   // ------------------------------------------------------------ offers
   listOffers: withAuth(ADMIN, async (req) => {
-    const q = readQuery(req, pagination);
-    return ok(await adminOfferService.list(q.page, q.pageSize));
+    const q = readQuery(req, offersQuery);
+    return ok(await adminOfferService.list(q.page, q.pageSize, { search: q.search, state: q.state }));
   }),
   createOffer: withAuth(ADMIN, async (req, auth) =>
     created(await adminOfferService.create(auth.userId, await readJson(req, createOfferSchema))),
@@ -182,8 +184,8 @@ export const adminController = {
     created(await adminBookingService.refund(auth.userId, await readJson(req, refundSchema))),
   ),
   transactions: withAuth(ADMIN, async (req) => {
-    const q = readQuery(req, pagination);
-    return ok(await adminPayoutService.transactions(q.page, q.pageSize));
+    const q = readQuery(req, transactionsQuery);
+    return ok(await adminPayoutService.transactions(q.page, q.pageSize, { search: q.search, status: q.status, from: q.from, to: q.to }));
   }),
   listPayouts: withAuth(ADMIN, async (req) => ok(await adminPayoutService.list(readQuery(req, payoutsQuery)))),
   paymentsSummary: withAuth(ADMIN, async () => ok(await adminPayoutService.summary())),

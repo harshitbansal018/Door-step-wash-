@@ -2,6 +2,7 @@ import "server-only";
 import { conflict, notFound, unprocessable } from "../lib/errors";
 import { createAdminClient } from "../lib/supabase";
 import { formatSlot } from "../lib/time";
+import { jobIssueModel } from "../models/job-issue.model";
 import { bookingModel } from "../models/booking.model";
 import { paymentModel } from "../models/payment.model";
 import { workerModel } from "../models/worker.model";
@@ -15,9 +16,11 @@ const ASSIGNABLE: BookingStatus[] = ["confirmed", "assigned", "accepted"];
 const ADMIN_CANCELLABLE: BookingStatus[] = ["pending_payment", "confirmed", "assigned", "accepted", "on_the_way", "in_progress"];
 
 export const adminBookingService = {
-  async list(q: { status?: BookingStatus[]; cityId?: string; date?: string; search?: string; page: number; pageSize: number }) {
+  async list(q: { status?: BookingStatus[]; cityId?: string; date?: string; search?: string; issue?: boolean; kind?: "plan" | "single"; page: number; pageSize: number }) {
+    const db = createAdminClient();
     const from = (q.page - 1) * q.pageSize;
-    const { rows, total } = await bookingModel.list(createAdminClient(), { ...q, from, to: from + q.pageSize - 1 });
+    const ids = q.issue ? await jobIssueModel.openBookingIdsAll(db) : undefined;
+    const { rows, total } = await bookingModel.list(db, { ...q, ids, from, to: from + q.pageSize - 1 });
     return {
       items: rows.map((b) => ({ ...presentBooking(b, { showWorkerPhone: true }), workerId: b.worker_id })),
       page: q.page,

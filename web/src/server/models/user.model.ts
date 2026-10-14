@@ -20,9 +20,10 @@ export const userModel = {
     return this.update(db, id, { role });
   },
 
-  async list(db: Db, opts: { role?: UserRole; search?: string; from: number; to: number }) {
+  async list(db: Db, opts: { role?: UserRole; search?: string; blocked?: boolean; from: number; to: number }) {
     let q = db.from("profiles").select("*", { count: "exact" }).order("created_at", { ascending: false });
     if (opts.role) q = q.eq("role", opts.role);
+    if (opts.blocked !== undefined) q = q.eq("is_blocked", opts.blocked);
     if (opts.search) q = q.or(`email.ilike.%${opts.search}%,full_name.ilike.%${opts.search}%`);
     const { data, count, error } = await q.range(opts.from, opts.to);
     if (error) throw error;

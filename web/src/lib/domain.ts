@@ -68,6 +68,8 @@ export interface Quote {
   discount: number;
   total: number;
   offer: { id: string; code: string; title: string } | null;
+  /** Every offer applied, with its own discount. */
+  offers?: { id: string; code: string; title: string; label: string; discount: number }[];
 }
 
 export interface Booking {
@@ -140,6 +142,8 @@ export interface CatalogPlan {
 export interface PlanQuote {
   planPrice: number;
   areaCharge: number;
+  discount?: number;
+  offer?: { id: string; code: string; title: string; label: string; months: number } | null;
   total: number;
   visits: number;
   perVisit: number;

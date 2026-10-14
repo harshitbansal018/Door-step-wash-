@@ -35,3 +35,16 @@ export async function readJson<T extends z.ZodType>(req: NextRequest, schema: T)
 export function readQuery<T extends z.ZodType>(req: NextRequest, schema: T): z.infer<T> {
   return schema.parse(Object.fromEntries(req.nextUrl.searchParams));
 }
+
+/**
+ * Partial version of an object schema for PATCH bodies. Zod applies `.default()`
+ * even inside `.partial()`, which would overwrite fields the client didn't send,
+ * so defaults are removed and every field becomes optional.
+ */
+export function patchOf<T extends z.ZodRawShape>(schema: z.ZodObject<T>) {
+  return z.object(
+    Object.fromEntries(
+      Object.entries(schema.shape).map(([key, field]) => [key, z.optional((field instanceof z.ZodDefault ? field.unwrap() : field) as z.ZodType)]),
+    ),
+  ) as unknown as ReturnType<z.ZodObject<T>["partial"]>;
+}

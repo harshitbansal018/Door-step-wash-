@@ -8,7 +8,15 @@ const weekday = z.number().int().min(0, "Pick a day of the week.").max(6);
 export const plansQuery = z.object({ areaId: uuid.optional() });
 export const planOptionsQuery = z.object({ pincode });
 
-export const planQuoteSchema = z.object({ planId: uuid, pincode, vehicleType });
+export const planQuoteSchema = z.object({
+  planId: uuid,
+  pincode,
+  vehicleType,
+  code: z.string().trim().regex(/^[A-Za-z0-9_-]{3,30}$/, "Enter a valid coupon code.").optional(),
+  /** Weekly visit, so day and time-window plan offers can be checked. */
+  weekday: z.number().int().min(0).max(6).optional(),
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+});
 
 export const startSubscriptionSchema = z.object({
   planId: uuid,
@@ -32,6 +40,7 @@ export const startSubscriptionSchema = z.object({
   notes: trimmed(500).optional(),
   weekday,
   startTime: time,
+  offerCode: z.string().trim().regex(/^[A-Za-z0-9_-]{3,30}$/, "Enter a valid coupon code.").optional(),
 });
 
 export const changeVisitSchema = z.object({ weekday, startTime: time });

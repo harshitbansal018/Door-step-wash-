@@ -6,6 +6,7 @@ import { formatSlot } from "../lib/time";
 import type { AuthContext } from "../middlewares/auth.middleware";
 import { bookingModel, type BookingDetail } from "../models/booking.model";
 import { cityModel } from "../models/city.model";
+import { offerModel } from "../models/offer.model";
 import { paymentModel } from "../models/payment.model";
 import { slotModel } from "../models/slot.model";
 import { userModel } from "../models/user.model";
@@ -70,10 +71,18 @@ async function loadOwned(db: Db, customerId: string, bookingId: string) {
 }
 
 export const bookingService = {
-  async quote(auth: AuthContext, input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code?: string }) {
+  async quote(
+    auth: AuthContext,
+    input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code?: string; slotId?: string },
+  ) {
+    const db = createAdminClient();
     const area = await coverageService.assertServed(input.pincode);
-    return pricingService.quote(createAdminClient(), {
+    const slot = input.slotId ? await slotModel.findById(db, input.slotId) : null;
+    return pricingService.quote(db, {
       cityId: area.city_id,
+      areaId: area.id,
+      customerEmail: auth.email,
+      slot: slot && slot.area_id === area.id ? { date: slot.slot_date, start: slot.start_time } : undefined,
       areaCharge: area.extra_charge,
       serviceId: input.serviceId,
       vehicleType: input.vehicleType,
@@ -93,6 +102,9 @@ export const bookingService = {
 
     const quote = await pricingService.quote(db, {
       cityId: area.city_id,
+      areaId: area.id,
+      customerEmail: auth.email,
+      slot: { date: slot.slot_date, start: slot.start_time },
       areaCharge: area.extra_charge,
       serviceId: input.serviceId,
       vehicleType: input.vehicleType,
@@ -129,6 +141,14 @@ export const bookingService = {
       PAYMENT_HOLD_MINUTES,
     );
 
+    // Every applied offer is recorded on the booking; usage is counted when payment is captured.
+    const applied = quote.offers.map((o) => ({ offer_id: o.id, discount: o.discount }));
+    if (applied.length) {
+      const { error } = await db.from("bookings").update({ applied_offers: applied }).eq("id", booking.id);
+      // Before the offers migration the column is missing; the main offer is still on bookings.offer_id.
+      if (error && error.code !== "PGRST204" && error.code !== "42703") throw error;
+    }
+
     if (env().PAYMENTS_MODE === "mock") {
       const confirmed = await bookingModel.transition(db, booking.id, ["pending_payment"], {
         status: "confirmed",
@@ -136,6 +156,10 @@ export const bookingService = {
         status_changed_by: auth.userId,
       });
       if (!confirmed) throw conflict("That booking could not be confirmed. Please try again.", "BOOKING_CONFIRM_FAILED");
+      // No payment capture in mock mode, so count the offer uses here.
+      for (const o of applied) {
+        await offerModel.recordUsage(db, { offerId: o.offer_id, userId: auth.userId, bookingId: booking.id, discount: o.discount });
+      }
 
       const detail = await bookingModel.findDetail(db, booking.id);
       if (detail) {
@@ -181,11 +205,14 @@ export const bookingService = {
     }
   },
 
-  async listMine(auth: AuthContext, q: { scope: "upcoming" | "past" | "all"; page: number; pageSize: number }) {
+  async listMine(auth: AuthContext, q: { scope: "upcoming" | "past" | "all"; search?: string; kind?: "plan" | "single"; page: number; pageSize: number }) {
     const from = (q.page - 1) * q.pageSize;
     const { rows, total } = await bookingModel.list(auth.db, {
       customerId: auth.userId,
       status: q.scope === "upcoming" ? UPCOMING : q.scope === "past" ? PAST : undefined,
+      search: q.search,
+      kind: q.kind,
+      ascending: q.scope === "upcoming",
       from,
       to: from + q.pageSize - 1,
     });

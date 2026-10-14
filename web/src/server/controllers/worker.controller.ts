@@ -56,7 +56,15 @@ export const workerController = {
   }),
 
   earnings: withAuth(["worker"], async (req, auth) => {
-    const q = readQuery(req, pagination.extend({ payoutPage: z.coerce.number().int().min(1).default(1) }));
+    const q = readQuery(
+      req,
+      pagination.extend({
+        payoutPage: z.coerce.number().int().min(1).default(1),
+        range: z.enum(["all", "week", "month", "custom"]).default("all"),
+        from: z.iso.date().optional(),
+        to: z.iso.date().optional(),
+      }),
+    );
     return ok(await workerService.earnings(auth, q));
   }),
 };

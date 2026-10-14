@@ -5,7 +5,7 @@ import { userModel } from "../models/user.model";
 import type { UserRole } from "../types/db";
 
 export const adminUserService = {
-  async list(q: { role?: UserRole; search?: string; page: number; pageSize: number }) {
+  async list(q: { role?: UserRole; search?: string; blocked?: boolean; page: number; pageSize: number }) {
     const from = (q.page - 1) * q.pageSize;
     const { rows, total } = await userModel.list(createAdminClient(), { ...q, from, to: from + q.pageSize - 1 });
     return {

@@ -25,13 +25,31 @@ function toRow(input: OfferInput): Partial<OfferRow> {
   if (input.perUserLimit !== undefined) row.per_user_limit = input.perUserLimit;
   if (input.autoApply !== undefined) row.auto_apply = input.autoApply;
   if (input.isActive !== undefined) row.is_active = input.isActive;
+  if (input.appliesTo !== undefined) row.applies_to = input.appliesTo;
+  if (input.vehicleTypes !== undefined) row.vehicle_types = input.vehicleTypes;
+  if (input.areaIds !== undefined) row.area_ids = input.areaIds;
+  if (input.planIds !== undefined) row.plan_ids = input.planIds;
+  if (input.weekdays !== undefined) row.weekdays = [...new Set(input.weekdays)].sort();
+  if (input.timeFrom !== undefined) row.time_from = input.timeFrom;
+  if (input.timeTo !== undefined) row.time_to = input.timeTo;
+  if (input.inactiveDays !== undefined) row.inactive_days = input.inactiveDays;
+  if (input.customerEmails !== undefined) row.customer_emails = [...new Set(input.customerEmails)];
+  if (input.minCompleted !== undefined) row.min_completed = input.minCompleted;
+  if (input.everyNth !== undefined) row.every_nth = input.everyNth;
+  if (input.priceServiceId !== undefined) row.price_service_id = input.priceServiceId;
+  if (input.planMonths !== undefined) row.plan_months = input.planMonths;
+  if (input.stackable !== undefined) row.stackable = input.stackable;
+  if (input.priority !== undefined) row.priority = input.priority;
+  if (input.budget !== undefined) row.budget = input.budget;
+  if (input.dailyLimit !== undefined) row.daily_limit = input.dailyLimit;
+  if (input.terms !== undefined) row.terms = input.terms || null;
   return row;
 }
 
 export const adminOfferService = {
-  async list(page: number, pageSize: number) {
+  async list(page: number, pageSize: number, f: { search?: string; state?: "active" | "scheduled" | "expired" | "inactive" } = {}) {
     const from = (page - 1) * pageSize;
-    const { rows, total } = await offerModel.list(createAdminClient(), from, from + pageSize - 1);
+    const { rows, total } = await offerModel.list(createAdminClient(), from, from + pageSize - 1, f);
     return { items: rows, page, pageSize, total };
   },
 

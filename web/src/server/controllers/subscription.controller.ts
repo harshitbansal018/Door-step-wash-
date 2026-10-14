@@ -13,8 +13,8 @@ import { readJson, uuid } from "../validators/common";
 type IdParams = { id: string };
 
 export const subscriptionController = {
-  quote: withAuth(["customer"], async (req) =>
-    ok(await subscriptionService.quote(await readJson(req, planQuoteSchema))),
+  quote: withAuth(["customer"], async (req, auth) =>
+    ok(await subscriptionService.quote(auth, await readJson(req, planQuoteSchema))),
   ),
 
   start: withAuth(["customer"], async (req, auth) =>

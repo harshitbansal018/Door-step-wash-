@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { isoDate, pagination, phone, pincode, search, trimmed, uuid, vehicleType } from "./common";
+import { isoDate, pagination, patchOf, phone, pincode, search, trimmed, uuid, vehicleType } from "./common";
 import { password as accountPassword } from "./auth.validator";
 
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM.");
@@ -34,10 +34,7 @@ export const createCitySchema = z.object({
   cancellationWindowMinutes: z.number().int().min(0).max(2880).default(120),
 });
 
-export const updateCitySchema = createCitySchema
-  .omit({ slug: true })
-  .partial()
-  .extend({ isActive: z.boolean().optional() });
+export const updateCitySchema = patchOf(createCitySchema.omit({ slug: true })).extend({ isActive: z.boolean().optional() });
 
 const pincodes = z.array(pincode).min(1, "Add at least one pincode.").max(200);
 
@@ -65,7 +62,7 @@ export const createServiceSchema = z.object({
   sortOrder: z.number().int().min(0).max(1000).default(0),
 });
 
-export const updateServiceSchema = createServiceSchema.partial();
+export const updateServiceSchema = patchOf(createServiceSchema);
 
 export const setPricesSchema = z.object({
   cityId: uuid,
@@ -128,6 +125,8 @@ export const updateWorkerSchema = z.object({
 });
 
 export const listWorkersQuery = pagination.extend({
+  search,
+  online: z.enum(["true", "false"]).optional().transform((v) => (v === undefined ? undefined : v === "true")),
   cityId: uuid.optional(),
   status: z.enum(["pending_kyc", "active", "suspended"]).optional(),
 });
@@ -140,13 +139,31 @@ const offerBase = z.object({
     .toUpperCase()
     .regex(/^[A-Z0-9_-]{3,30}$/, "3–30 letters, numbers, dashes or underscores."),
   title: z.string().trim().min(2).max(80),
-  discountType: z.enum(["flat", "percent"]),
+  discountType: z.enum(["flat", "percent", "fixed_price", "price_match", "free_area_charge"]),
   value: z.number().int().min(1).max(100_000),
   maxDiscount: z.number().int().min(1).max(100_000).nullable().optional(),
   minOrder: money.default(0),
   cityIds: z.array(uuid).max(50).default([]),
   serviceIds: z.array(uuid).max(50).default([]),
-  userType: z.enum(["all", "new"]).default("all"),
+  userType: z.enum(["all", "new", "returning", "inactive", "subscribers", "list"]).default("all"),
+  appliesTo: z.enum(["booking", "plan", "both"]).default("booking"),
+  vehicleTypes: z.array(vehicleType).max(4).default([]),
+  areaIds: z.array(uuid).max(200).default([]),
+  planIds: z.array(uuid).max(50).default([]),
+  weekdays: z.array(z.number().int().min(0).max(6)).max(7).default([]),
+  timeFrom: time.nullable().default(null),
+  timeTo: time.nullable().default(null),
+  inactiveDays: z.number().int().min(1).max(365).default(30),
+  customerEmails: z.array(z.email().trim().toLowerCase()).max(1000).default([]),
+  minCompleted: z.number().int().min(0).max(500).default(0),
+  everyNth: z.number().int().min(2).max(50).nullable().default(null),
+  priceServiceId: uuid.nullable().default(null),
+  planMonths: z.number().int().min(1).max(12).default(1),
+  stackable: z.boolean().default(false),
+  priority: z.number().int().min(-100).max(100).default(0),
+  budget: z.number().int().min(1).max(10_000_000).nullable().default(null),
+  dailyLimit: z.number().int().min(1).max(100_000).nullable().default(null),
+  terms: z.string().trim().max(300).nullable().default(null),
   validFrom: z.iso.datetime({ offset: true }),
   validTo: z.iso.datetime({ offset: true }),
   usageLimit: z.number().int().min(1).nullable().optional(),
@@ -155,8 +172,41 @@ const offerBase = z.object({
   isActive: z.boolean().default(true),
 });
 
-const offerRules = <T extends z.ZodType<{ discountType?: string; value?: number; validFrom?: string; validTo?: string }>>(s: T) =>
+type OfferRuleShape = {
+  discountType?: string;
+  value?: number;
+  validFrom?: string;
+  validTo?: string;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  priceServiceId?: string | null;
+  userType?: string;
+  customerEmails?: string[];
+  appliesTo?: string;
+};
+
+const offerRules = <T extends z.ZodType<OfferRuleShape>>(s: T) =>
   s
+    .refine((o) => (o.timeFrom == null) === (o.timeTo == null), {
+      message: "Set both a start and an end time, or neither.",
+      path: ["timeTo"],
+    })
+    .refine((o) => !o.timeFrom || !o.timeTo || o.timeTo > o.timeFrom, {
+      message: "End time must be after the start time.",
+      path: ["timeTo"],
+    })
+    .refine((o) => o.discountType !== "price_match" || !!o.priceServiceId, {
+      message: "Choose which package's price the customer pays.",
+      path: ["priceServiceId"],
+    })
+    .refine((o) => o.discountType !== "price_match" || o.appliesTo !== "plan", {
+      message: "A free upgrade applies to single bookings, not plans.",
+      path: ["appliesTo"],
+    })
+    .refine((o) => o.userType !== "list" || (o.customerEmails?.length ?? 0) > 0, {
+      message: "Add at least one customer email.",
+      path: ["customerEmails"],
+    })
     .refine((o) => o.discountType !== "percent" || (o.value ?? 0) <= 100, {
       message: "A percentage can't be more than 100.",
       path: ["value"],
@@ -167,7 +217,18 @@ const offerRules = <T extends z.ZodType<{ discountType?: string; value?: number;
     });
 
 export const createOfferSchema = offerRules(offerBase);
-export const updateOfferSchema = offerRules(offerBase.partial());
+/**
+ * Updates must only touch the fields that were sent. Zod applies `.default()` even
+ * inside `.partial()`, which would silently reset unsent fields (for example a
+ * simple on/off toggle wiping the minimum order), so defaults are stripped here.
+ */
+const offerPatch = z.object(
+  Object.fromEntries(
+    Object.entries(offerBase.shape).map(([key, field]) => [key, (field instanceof z.ZodDefault ? field.unwrap() : field).optional()]),
+  ),
+) as unknown as ReturnType<typeof offerBase.partial>;
+export const updateOfferSchema = offerRules(offerPatch);
+// (patchOf in ./common does the same for other schemas.)
 
 // ---------------------------------------------------------------- bookings, money
 export const listBookingsQuery = pagination.extend({
@@ -179,6 +240,8 @@ export const listBookingsQuery = pagination.extend({
   cityId: uuid.optional(),
   date: isoDate.optional(),
   search,
+  issue: z.enum(["open"]).optional().transform((v) => v === "open"),
+  kind: z.enum(["plan", "single"]).optional(),
 });
 
 export const assignSchema = z.object({ workerId: uuid });
@@ -194,7 +257,19 @@ export const refundSchema = z.object({
   reason: z.string().trim().min(3).max(300),
 });
 
-export const payoutsQuery = pagination.extend({ status: z.enum(["pending", "paid"]).optional() });
+export const payoutsQuery = pagination.extend({ status: z.enum(["pending", "paid"]).optional(), search });
+
+export const transactionsQuery = pagination.extend({
+  search,
+  status: z.enum(["created", "captured", "failed", "refunded", "partially_refunded"]).optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+});
+
+export const offersQuery = pagination.extend({
+  search,
+  state: z.enum(["active", "scheduled", "expired", "inactive"]).optional(),
+});
 
 export const markPayoutPaidSchema = z.object({ reference: z.string().trim().min(4).max(60) });
 
@@ -203,4 +278,5 @@ export const updateUserSchema = z.object({ isBlocked: z.boolean() });
 export const listUsersQuery = pagination.extend({
   role: z.enum(["customer", "worker", "admin"]).optional(),
   search,
+  blocked: z.enum(["true", "false"]).optional().transform((v) => (v === undefined ? undefined : v === "true")),
 });

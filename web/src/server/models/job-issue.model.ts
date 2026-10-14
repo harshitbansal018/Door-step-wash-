@@ -19,6 +19,14 @@ export const jobIssueModel = {
     return check(result) as JobIssueRow[];
   },
 
+  /** Booking ids with any unresolved issue (admin view). */
+  async openBookingIdsAll(db: Db): Promise<string[]> {
+    const result = await db.from("job_issues").select("booking_id").is("resolved_at", null);
+    if (missingTable(result.error)) return [];
+    const rows = check(result) as { booking_id: string }[];
+    return [...new Set(rows.map((r) => r.booking_id))];
+  },
+
   /** Booking ids that have an unresolved issue reported by this worker. */
   async openBookingIds(db: Db, workerId: string): Promise<string[]> {
     const result = await db.from("job_issues").select("booking_id").eq("worker_id", workerId).is("resolved_at", null);

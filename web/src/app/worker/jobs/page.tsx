@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import type { WorkerJob } from "@/lib/domain";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { EmptyState, ErrorState } from "@/components/data-state";
+import { SearchBox, useDebounced } from "@/components/filters";
 import { Pagination } from "@/components/pagination";
 import { Card, PageHeader, Skeleton, StatusBadge } from "@/components/ui";
 
@@ -23,6 +24,16 @@ const PAGE_SIZE = 10;
 export default function WorkerJobsPage() {
   const [scope, setScope] = useState<Scope>("upcoming");
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const q = useDebounced(search.trim());
+  const filterKey = `${q}|${date}`;
+  const [lastFilter, setLastFilter] = useState(filterKey);
+  if (lastFilter !== filterKey) {
+    setLastFilter(filterKey);
+    setPage(1);
+  }
+  const filtering = !!(q || date);
   const [data, setData] = useState<Page | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -31,13 +42,13 @@ export default function WorkerJobsPage() {
     setLoading(true);
     setError("");
     try {
-      setData(await api<Page>(`/api/worker/jobs/history?scope=${scope}&page=${page}&pageSize=${PAGE_SIZE}`));
+      setData(await api<Page>(`/api/worker/jobs/history?${new URLSearchParams({ scope, page: String(page), pageSize: String(PAGE_SIZE), ...(q ? { search: q } : {}), ...(date ? { date } : {}) })}`));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load jobs.");
     } finally {
       setLoading(false);
     }
-  }, [scope, page]);
+  }, [scope, page, q, date]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
@@ -72,6 +83,17 @@ export default function WorkerJobsPage() {
         ))}
       </div>
 
+      <div className="mb-5 flex gap-2">
+        <SearchBox value={search} onChange={setSearch} label="Search jobs" placeholder="Booking code or plate" />
+        <input
+          type="date"
+          aria-label="Job date"
+          value={date}
+          onChange={(event) => setDate(event.target.value)}
+          className="h-10 w-40 shrink-0 rounded-lg border-0 bg-white px-3 text-sm ring-1 ring-inset ring-slate-300 focus:ring-2 focus:ring-brand-600 focus:outline-none"
+        />
+      </div>
+
       {error ? (
         <ErrorState message={error} retry={load} />
       ) : loading && !data ? (
@@ -79,7 +101,10 @@ export default function WorkerJobsPage() {
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
       ) : !data?.items.length ? (
-        <EmptyState title={`No ${current.label.toLowerCase()} jobs`} description={current.empty} />
+        <EmptyState
+          title={filtering ? "No matching jobs" : `No ${current.label.toLowerCase()} jobs`}
+          description={filtering ? "Try another date or search, or clear the filters." : current.empty}
+        />
       ) : (
         <div key={`${scope}-${page}`} className="space-y-3">
           {data.items.map((job, index) => (

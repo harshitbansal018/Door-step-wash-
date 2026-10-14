@@ -15,6 +15,8 @@ import type { BookingStatus, SubscriptionRow, SubscriptionStatus, VehicleType } 
 import type { StartSubscriptionInput } from "../validators/plan.validator";
 import { coverageService } from "./coverage.service";
 import { notificationService } from "./notification.service";
+import { describeOffer, offerService } from "./offer.service";
+import { offerModel } from "../models/offer.model";
 import { planService, slotStarts } from "./plan.service";
 
 const UPCOMING: BookingStatus[] = ["confirmed", "assigned", "accepted", "on_the_way", "in_progress"];
@@ -110,6 +112,7 @@ async function openPayment(sub: SubscriptionRow, period: { start: string; end: s
       currency: "INR",
       period_start: period.start,
       period_end: period.end,
+      ...(sub.offer_id ? { offer_id: sub.offer_id, discount: sub.discount ?? 0 } : {}),
     });
     // The database enforces unique provider payment IDs. Reusing the literal
     // "dev" lets only the first local subscription activate successfully.
@@ -125,6 +128,7 @@ async function openPayment(sub: SubscriptionRow, period: { start: string; end: s
     currency: order.currency,
     period_start: period.start,
     period_end: period.end,
+    ...(sub.offer_id ? { offer_id: sub.offer_id, discount: sub.discount ?? 0 } : {}),
   });
   return {
     checkout: {
@@ -141,16 +145,90 @@ async function openPayment(sub: SubscriptionRow, period: { start: string; end: s
   };
 }
 
+/** Best offer for one paid month of a plan. Plans take a single offer. */
+async function planOffer(
+  db: Db,
+  input: {
+    cityId: string;
+    areaId: string;
+    planId: string;
+    vehicleType: VehicleType;
+    customerId: string;
+    customerEmail?: string;
+    weekday?: number;
+    startTime?: string;
+    planPrice: number;
+    areaCharge: number;
+    planMonth: number;
+  },
+  code?: string,
+) {
+  const { applied } = await offerService.resolve(
+    db,
+    {
+      kind: "plan",
+      subtotal: input.planPrice + input.areaCharge,
+      basePrice: input.planPrice,
+      areaCharge: input.areaCharge,
+      cityId: input.cityId,
+      areaId: input.areaId,
+      vehicleType: input.vehicleType,
+      customerId: input.customerId,
+      customerEmail: input.customerEmail,
+      planId: input.planId,
+      planMonth: input.planMonth,
+      weekday: input.weekday,
+      startTime: input.startTime,
+    },
+    code,
+  );
+  return applied[0] ?? null;
+}
+
 export const subscriptionService = {
-  async quote(input: { pincode: string; planId: string; vehicleType: VehicleType }) {
+  async quote(
+    auth: AuthContext,
+    input: { pincode: string; planId: string; vehicleType: VehicleType; code?: string; weekday?: number; startTime?: string },
+  ) {
+    const db = createAdminClient();
     const area = await coverageService.assertServed(input.pincode);
-    const q = await planService.quote(createAdminClient(), {
+    const q = await planService.quote(db, {
       cityId: area.city_id,
       areaCharge: area.extra_charge,
       planId: input.planId,
       vehicleType: input.vehicleType,
     });
-    return { planPrice: q.planPrice, areaCharge: q.areaCharge, total: q.total, visits: q.visits, perVisit: q.perVisit, listPrice: q.listPrice };
+    const applied = await planOffer(
+      db,
+      {
+        cityId: area.city_id,
+        areaId: area.id,
+        planId: input.planId,
+        vehicleType: input.vehicleType,
+        customerId: auth.userId,
+        customerEmail: auth.email,
+        weekday: input.weekday,
+        startTime: input.startTime,
+        planPrice: q.planPrice,
+        areaCharge: q.areaCharge,
+        planMonth: 1,
+      },
+      input.code,
+    );
+    const discount = applied?.discount ?? 0;
+    const total = q.total - discount;
+    return {
+      planPrice: q.planPrice,
+      areaCharge: q.areaCharge,
+      discount,
+      total,
+      visits: q.visits,
+      perVisit: Math.round(total / q.visits),
+      listPrice: q.listPrice,
+      offer: applied
+        ? { id: applied.offer.id, code: applied.offer.code, title: applied.offer.title, label: describeOffer(applied.offer), months: applied.offer.plan_months }
+        : null,
+    };
   },
 
   /** Creates the subscription in `pending_payment` and opens the first month's payment. */
@@ -168,6 +246,25 @@ export const subscriptionService = {
       planId: input.planId,
       vehicleType: input.vehicleType,
     });
+
+    const applied = await planOffer(
+      db,
+      {
+        cityId: area.city_id,
+        areaId: area.id,
+        planId: input.planId,
+        vehicleType: input.vehicleType,
+        customerId: auth.userId,
+        customerEmail: auth.email,
+        weekday: input.weekday,
+        startTime: input.startTime,
+        planPrice: quote.planPrice,
+        areaCharge: quote.areaCharge,
+        planMonth: 1,
+      },
+      input.offerCode,
+    );
+    const discount = applied?.discount ?? 0;
 
     const periodStart = todayIn(area.city.timezone);
     const period = { start: periodStart, end: addMonth(periodStart) };
@@ -193,7 +290,9 @@ export const subscriptionService = {
       notes: input.notes || null,
       plan_price: quote.planPrice,
       area_charge: quote.areaCharge,
-      total: quote.total,
+      // Offer columns are written only when an offer applies, so plans keep working before the offers migration runs.
+      ...(applied ? { offer_id: applied.offer.id, discount } : {}),
+      total: quote.total - discount,
     });
 
     try {
@@ -214,6 +313,13 @@ export const subscriptionService = {
     const db = createAdminClient();
     const result = await subscriptionModel.confirmPayment(db, orderId, paymentId, method, raw);
     if (!result.already && result.status === "active") {
+      const payment = await subscriptionModel.findPaymentByOrderId(db, orderId);
+      const owner = await subscriptionModel.findById(db, result.subscription_id);
+      if (payment?.offer_id && (payment.discount ?? 0) > 0 && owner) {
+        await offerModel
+          .recordUsage(db, { offerId: payment.offer_id, userId: owner.customer_id, subscriptionPaymentId: payment.id, discount: payment.discount ?? 0 })
+          .catch((err) => console.error("[plans] offer usage failed", err));
+      }
       await subscriptionModel.schedule(db, 14).catch((err) => console.error("[plans] scheduling failed", err));
       const detail = await subscriptionModel.findDetail(db, result.subscription_id);
       if (detail) {
@@ -319,8 +425,42 @@ export const subscriptionService = {
     const today = todayIn(sub.city.timezone);
     const start = sub.current_period_end && sub.current_period_end > today ? sub.current_period_end : today;
     const period = { start, end: addMonth(start) };
-    const payment = await openPayment(sub, period, { name: sub.contact_name, email: auth.email, phone: sub.contact_phone });
-    return { subscription: { id: sub.id, code: sub.code, total: sub.total }, period, ...payment };
+
+    // Keep the plan offer only while it is still valid and has months left.
+    let offerId: string | null = null;
+    let discount = 0;
+    if (sub.offer_id) {
+      const paidWithOffer = (await subscriptionModel.payments(db, sub.id)).filter(
+        (p) => p.status === "captured" && p.offer_id === sub.offer_id,
+      ).length;
+      try {
+        const result = await offerService.evaluate(db, await offerModel.findById(db, sub.offer_id), {
+          kind: "plan",
+          subtotal: sub.plan_price + sub.area_charge,
+          basePrice: sub.plan_price,
+          areaCharge: sub.area_charge,
+          cityId: sub.city_id,
+          areaId: sub.area_id,
+          vehicleType: sub.vehicle_type,
+          customerId: sub.customer_id,
+          customerEmail: auth.email,
+          planId: sub.plan_id,
+          planMonth: paidWithOffer + 1,
+          weekday: sub.weekday,
+          startTime: sub.preferred_start.slice(0, 5),
+        });
+        offerId = result.offer.id;
+        discount = result.discount;
+      } catch {
+        // Offer ended or its months are used up: this month is full price.
+      }
+    }
+    // Only touch offer columns when this plan had an offer.
+    const repriced = sub.offer_id
+      ? await subscriptionModel.update(db, sub.id, { offer_id: offerId, discount, total: sub.plan_price + sub.area_charge - discount })
+      : sub;
+    const payment = await openPayment(repriced, period, { name: sub.contact_name, email: auth.email, phone: sub.contact_phone });
+    return { subscription: { id: sub.id, code: sub.code, total: repriced.total }, period, ...payment };
   },
 
   /**

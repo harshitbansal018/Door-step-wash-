@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { isoDate, pagination, phone, pincode, trimmed, uuid, vehicleType } from "./common";
+import { isoDate, pagination, search, phone, pincode, trimmed, uuid, vehicleType } from "./common";
 
 const offerCode = z
   .string()
@@ -17,6 +17,8 @@ export const validateOfferSchema = z.object({
   pincode,
   serviceId: uuid,
   vehicleType,
+  /** Lets day and time-window offers be checked once a slot is picked. */
+  slotId: uuid.optional(),
 });
 
 export const createBookingSchema = z.object({
@@ -58,6 +60,8 @@ export const reviewSchema = z.object({
 
 export const myBookingsQuery = pagination.extend({
   scope: z.enum(["upcoming", "past", "all"]).default("all"),
+  search,
+  kind: z.enum(["plan", "single"]).optional(),
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;

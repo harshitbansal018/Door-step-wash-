@@ -129,11 +129,11 @@ export function BookingWizard({
   useEffect(() => {
     if (step !== 3 || !service || !served || coupon) return;
     let live = true;
-    api<Quote>("/api/offers/validate", { method: "POST", body: { pincode, serviceId: service.id, vehicleType: vehicle } })
+    api<Quote>("/api/offers/validate", { method: "POST", body: { pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined } })
       .then((data) => live && setQuote(data))
       .catch(() => live && setQuote(null));
     return () => { live = false; };
-  }, [step, service, served, coupon, pincode, vehicle]);
+  }, [step, service, served, coupon, pincode, vehicle, slotId]);
 
   async function applyCoupon() {
     if (!service || !coupon) return;
@@ -142,7 +142,7 @@ export function BookingWizard({
     try {
       const data = await api<Quote>("/api/offers/validate", {
         method: "POST",
-        body: { code: coupon, pincode, serviceId: service.id, vehicleType: vehicle },
+        body: { code: coupon, pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined },
       });
       setQuote(data);
     } catch (caught) {
@@ -175,7 +175,7 @@ export function BookingWizard({
           contactName: name,
           contactPhone: phone,
           notes: notes || undefined,
-          offerCode: quote?.offer?.code || undefined,
+          offerCode: coupon && quote?.offers?.some((o) => o.code === coupon) ? coupon : undefined,
         },
       });
       if (!result.checkout) {
@@ -444,7 +444,18 @@ export function BookingWizard({
                     {formatMoney(quote?.total ?? (service.prices[vehicle] ?? 0) + (served?.area?.extraCharge ?? 0))}
                   </strong>
                 </div>
-                {quote?.discount ? <p className="step-enter mt-1 font-medium text-emerald-700">Discount: {formatMoney(quote.discount)}</p> : null}
+                {quote?.discount ? (
+                  <div className="step-enter mt-2 space-y-1 border-t border-slate-200 pt-2">
+                    <p className="flex justify-between text-slate-500"><span>Price</span><span className="tabular-nums line-through">{formatMoney(quote.subtotal)}</span></p>
+                    {(quote.offers?.length ? quote.offers : quote.offer ? [{ ...quote.offer, label: "Offer", discount: quote.discount }] : []).map((o) => (
+                      <p key={o.id} className="flex justify-between gap-3 font-medium text-emerald-700">
+                        <span className="flex min-w-0 items-center gap-1.5"><Tag className="size-3.5 shrink-0" /><span className="truncate">{o.title} <span className="font-normal text-emerald-600">({o.code})</span></span></span>
+                        <span className="shrink-0 tabular-nums">−{formatMoney(o.discount)}</span>
+                      </p>
+                    ))}
+                    <p className="text-xs font-semibold text-emerald-700">You save {formatMoney(quote.discount)}</p>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

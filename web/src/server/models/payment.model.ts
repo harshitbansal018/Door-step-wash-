@@ -63,12 +63,24 @@ export const paymentModel = {
     check(await db.from("payments").update({ status }).eq("id", id));
   },
 
-  async list(db: Db, from: number, to: number) {
-    const { data, count, error } = await db
+  async list(
+    db: Db,
+    from: number,
+    to: number,
+    f: { search?: string; status?: PaymentRow["status"]; dateFrom?: string; dateTo?: string } = {},
+  ) {
+    let q = db
       .from("payments")
-      .select("*, booking:bookings!inner(code, contact_name, slot_date)", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, to);
+      .select("*, booking:bookings!inner(code, contact_name, contact_phone, slot_date)", { count: "exact" })
+      .order("created_at", { ascending: false });
+    if (f.status) q = q.eq("status", f.status);
+    if (f.dateFrom) q = q.gte("created_at", `${f.dateFrom}T00:00:00+05:30`);
+    if (f.dateTo) q = q.lte("created_at", `${f.dateTo}T23:59:59+05:30`);
+    if (f.search) {
+      const s = f.search;
+      q = q.or(`code.ilike.%${s}%,contact_name.ilike.%${s}%,contact_phone.ilike.%${s}%`, { referencedTable: "booking" });
+    }
+    const { data, count, error } = await q.range(from, to);
     if (error) throw error;
     return { rows: data ?? [], total: count ?? 0 };
   },

@@ -20,10 +20,18 @@ export const workerModel = {
     return check(await db.from("workers").select(WITH_PROFILE).eq("id", id).maybeSingle()) as WorkerWithProfile | null;
   },
 
-  async list(db: Db, filter: { cityId?: string; status?: WorkerRow["status"]; from: number; to: number }) {
+  async list(
+    db: Db,
+    filter: { cityId?: string; status?: WorkerRow["status"]; online?: boolean; search?: string; from: number; to: number },
+  ) {
     let q = db.from("workers").select(WITH_PROFILE, { count: "exact" }).order("created_at", { ascending: false });
     if (filter.cityId) q = q.eq("city_id", filter.cityId);
     if (filter.status) q = q.eq("status", filter.status);
+    if (filter.online !== undefined) q = q.eq("is_online", filter.online);
+    if (filter.search) {
+      const s = filter.search;
+      q = q.or(`full_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`, { referencedTable: "profile" });
+    }
     const { data, count, error } = await q.range(filter.from, filter.to);
     if (error) throw error;
     return { rows: (data ?? []) as unknown as WorkerWithProfile[], total: count ?? 0 };

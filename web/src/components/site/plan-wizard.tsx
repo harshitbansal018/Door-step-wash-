@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Script from "next/script";
 import { useEffect, useState } from "react";
-import { ArrowRight, CalendarCheck, Check, CheckCircle2, Loader2, MapPin, Repeat, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarCheck, Check, CheckCircle2, Loader2, MapPin, Repeat, Sparkles, Tag } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
 import { type CatalogPlan, type PlanOptions, type PlanQuote, VEHICLES, type VehicleType, WEEKDAYS } from "@/lib/domain";
 import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
@@ -67,6 +67,8 @@ export function PlanWizard({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
+  const [coupon, setCoupon] = useState("");
+  const [appliedCode, setAppliedCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [existingPlan, setExistingPlan] = useState(false);
@@ -111,10 +113,23 @@ export function PlanWizard({
     if (!options || !planId || pincode.length !== 6) return;
     let live = true;
     const timer = window.setTimeout(() => {
-      api<PlanQuote>("/api/subscriptions/quote", { method: "POST", body: { planId, pincode, vehicleType: vehicle } })
-        .then((q) => live && setQuote(q))
+      api<PlanQuote>("/api/subscriptions/quote", {
+        method: "POST",
+        body: { planId, pincode, vehicleType: vehicle, code: appliedCode || undefined, weekday, startTime: startTime || undefined },
+      })
+        .then((q) => {
+          if (!live) return;
+          setQuote(q);
+          if (appliedCode) setError("");
+        })
         .catch((caught: ApiError) => {
           if (!live) return;
+          // A code that does not apply is dropped so the plain price still shows.
+          if (appliedCode) {
+            setAppliedCode("");
+            setError(caught.message);
+            return;
+          }
           setQuote(null);
           setError(caught.message);
         });
@@ -123,7 +138,7 @@ export function PlanWizard({
       live = false;
       window.clearTimeout(timer);
     };
-  }, [options, planId, vehicle, pincode]);
+  }, [options, planId, vehicle, pincode, appliedCode, weekday, startTime]);
 
   const canNext = [
     !!options && !!plan && !!quote,
@@ -160,6 +175,7 @@ export function PlanWizard({
           notes: notes || undefined,
           weekday,
           startTime,
+          offerCode: appliedCode || undefined,
         },
       });
       if (!result.checkout) {
@@ -406,6 +422,19 @@ export function PlanWizard({
             <div><Label htmlFor="name">Contact name</Label><Input id="name" value={name} onChange={(event) => setName(event.target.value)} /></div>
             <div><Label htmlFor="phone">Mobile number</Label><Input id="phone" inputMode="numeric" value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))} /></div>
             <div className="sm:col-span-2"><Label htmlFor="notes">Notes (optional)</Label><Input id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} /></div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="plan-coupon">Coupon code (optional)</Label>
+              <div className="flex gap-2">
+                <Input id="plan-coupon" value={coupon} onChange={(event) => setCoupon(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))} placeholder="Enter a code" />
+                {appliedCode && appliedCode === coupon ? (
+                  <Button type="button" variant="secondary" onClick={() => { setAppliedCode(""); setCoupon(""); }}>Remove</Button>
+                ) : (
+                  <Button type="button" variant="secondary" disabled={coupon.length < 3} onClick={() => { setError(""); setAppliedCode(coupon); }}>
+                    <Tag className="size-4" /> Apply
+                  </Button>
+                )}
+              </div>
+            </div>
             {plan && quote && (
               <div className="sm:col-span-2 rounded-xl bg-slate-950 p-5 text-white">
                 <div className="flex items-start justify-between gap-4">
@@ -415,10 +444,18 @@ export function PlanWizard({
                     <p className="mt-1 flex items-center gap-2 text-sm text-slate-300"><Repeat className="size-4" /> Every {WEEKDAYS[weekday]} at {startTime}</p>
                   </div>
                   <div className="text-right">
+                    {quote.discount ? <p className="text-sm text-slate-400 tabular-nums line-through">{formatMoney(quote.total + quote.discount)}</p> : null}
                     <p className="text-2xl font-bold tabular-nums">{formatMoney(quote.total)}</p>
                     <p className="text-xs text-slate-400">{quote.visits} visits · renews monthly</p>
                   </div>
                 </div>
+                {quote.offer && quote.discount ? (
+                  <p className="step-enter mt-3 flex items-center gap-2 rounded-lg bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-200">
+                    <Tag className="size-4 shrink-0" />
+                    {quote.offer.title}: {formatMoney(quote.discount)} off
+                    {quote.offer.months > 1 ? ` for your first ${quote.offer.months} months` : " on your first month"}
+                  </p>
+                ) : null}
               </div>
             )}
           </div>

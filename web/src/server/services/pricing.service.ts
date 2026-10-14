@@ -2,8 +2,16 @@ import "server-only";
 import { unprocessable } from "../lib/errors";
 import type { Db } from "../lib/supabase";
 import { serviceModel } from "../models/service.model";
-import type { OfferRow, VehicleType } from "../types/db";
-import { offerService } from "./offer.service";
+import type { VehicleType } from "../types/db";
+import { describeOffer, offerService } from "./offer.service";
+
+export interface QuoteOffer {
+  id: string;
+  code: string;
+  title: string;
+  label: string;
+  discount: number;
+}
 
 export interface Quote {
   basePrice: number;
@@ -11,7 +19,10 @@ export interface Quote {
   subtotal: number;
   discount: number;
   total: number;
-  offer: Pick<OfferRow, "id" | "code" | "title"> | null;
+  /** The main offer (largest discount), kept for older screens. */
+  offer: Pick<QuoteOffer, "id" | "code" | "title"> | null;
+  /** Every offer applied to this order. */
+  offers: QuoteOffer[];
 }
 
 export const pricingService = {
@@ -23,10 +34,14 @@ export const pricingService = {
     db: Db,
     input: {
       cityId: string;
+      areaId: string;
       areaCharge: number;
       serviceId: string;
       vehicleType: VehicleType;
       customerId: string;
+      customerEmail?: string;
+      /** Known once a slot is picked; time-window offers need it. */
+      slot?: { date: string; start: string };
       offerCode?: string;
     },
   ): Promise<Quote> {
@@ -39,19 +54,45 @@ export const pricingService = {
     }
 
     const subtotal = price.price + input.areaCharge;
-    const ctx = { subtotal, cityId: input.cityId, serviceId: input.serviceId, customerId: input.customerId };
-    const applied = input.offerCode
-      ? await offerService.byCode(db, input.offerCode, ctx)
-      : await offerService.bestAutomatic(db, ctx);
+    const { applied, discount } = await offerService.resolve(
+      db,
+      {
+        kind: "booking",
+        subtotal,
+        basePrice: price.price,
+        areaCharge: input.areaCharge,
+        cityId: input.cityId,
+        areaId: input.areaId,
+        vehicleType: input.vehicleType,
+        customerId: input.customerId,
+        customerEmail: input.customerEmail,
+        serviceId: input.serviceId,
+        weekday: input.slot ? new Date(`${input.slot.date}T00:00:00Z`).getUTCDay() : undefined,
+        startTime: input.slot?.start.slice(0, 5),
+        priceOfService: async (serviceId) => {
+          const other = await serviceModel.findPrice(db, input.cityId, serviceId, input.vehicleType);
+          return other?.is_active ? other.price : null;
+        },
+      },
+      input.offerCode,
+    );
 
-    const discount = applied?.discount ?? 0;
+    const offers = applied.map((a) => ({
+      id: a.offer.id,
+      code: a.offer.code,
+      title: a.offer.title,
+      label: describeOffer(a.offer),
+      discount: a.discount,
+    }));
+    const main = [...offers].sort((a, b) => b.discount - a.discount)[0] ?? null;
     return {
       basePrice: price.price,
       areaCharge: input.areaCharge,
       subtotal,
       discount,
       total: subtotal - discount,
-      offer: applied ? { id: applied.offer.id, code: applied.offer.code, title: applied.offer.title } : null,
+      offer: main ? { id: main.id, code: main.code, title: main.title } : null,
+      offers,
     };
   },
 };

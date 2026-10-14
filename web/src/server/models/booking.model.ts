@@ -26,6 +26,10 @@ export interface BookingListFilter {
   date?: string;
   search?: string;
   ids?: string[];
+  /** Only bookings created by a monthly plan, or only one-off bookings. */
+  kind?: "plan" | "single";
+  dateFrom?: string;
+  dateTo?: string;
   /** Oldest first instead of newest first. */
   ascending?: boolean;
   from: number;
@@ -60,6 +64,10 @@ export const bookingModel = {
     if (f.customerId) q = q.eq("customer_id", f.customerId);
     if (f.workerId) q = q.eq("worker_id", f.workerId);
     if (f.date) q = q.eq("slot_date", f.date);
+    if (f.dateFrom) q = q.gte("slot_date", f.dateFrom);
+    if (f.dateTo) q = q.lte("slot_date", f.dateTo);
+    if (f.kind === "plan") q = q.not("subscription_id", "is", null);
+    if (f.kind === "single") q = q.is("subscription_id", null);
     if (f.search) {
       q = q.or(`code.ilike.%${f.search}%,contact_name.ilike.%${f.search}%,vehicle_plate.ilike.%${f.search}%,contact_phone.ilike.%${f.search}%`);
     }
