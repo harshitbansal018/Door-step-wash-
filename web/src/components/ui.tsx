@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Droplets } from "lucide-react";
+import Image from "next/image";
 import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import { BRAND } from "@/lib/config";
 import { STATUS_META, type BookingStatus, type Tone } from "@/lib/domain";
@@ -208,10 +208,16 @@ export function Avatar({ name, className }: { name: string; className?: string }
 
 export function Logo({ href = "/", light = false, suffix, name = BRAND.name }: { href?: string; light?: boolean; suffix?: string; name?: string }) {
   return (
-    <Link href={href} className="flex items-center gap-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
-        <Droplets className="size-4.5" />
-      </span>
+    <Link href={href} className="flex items-center gap-2" aria-label={`${name} home`}>
+      {/* Navy strokes become white on dark headers so the car stays visible. */}
+      <Image
+        src={light ? "/brand/logo-mark-light.png" : "/brand/logo-mark.png"}
+        alt=""
+        width={93}
+        height={32}
+        priority
+        className="h-8 w-auto shrink-0"
+      />
       <span className={cn("text-lg font-bold tracking-tight", light ? "text-white" : "text-slate-900")}>
         {name}
       </span>
