@@ -219,7 +219,7 @@ export default async function HomePage() {
                   {faq.question}
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg leading-none text-slate-500 transition-all duration-300 group-hover:bg-slate-200 group-open:rotate-45 group-open:bg-brand-600 group-open:text-white">+</span>
                 </summary>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{faq.answer}</p>
+                <p className="mt-3 text-sm leading-6 whitespace-pre-line text-slate-600">{faq.answer}</p>
               </details>
             ))}
           </Reveal>

@@ -75,7 +75,7 @@ export function FaqExplorer({ items }: { items: SiteContent["faq"]["items"] }) {
                 <ChevronDown className="size-4" />
               </span>
             </summary>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">{item.answer}</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 whitespace-pre-line text-slate-600">{item.answer}</p>
           </details>
         ))}
         {!visible.length && (

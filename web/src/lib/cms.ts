@@ -196,6 +196,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
       { category: "Booking", question: "Can I reschedule my booking?", answer: "Eligible bookings can be rescheduled online, subject to available slots and the displayed window." },
       { category: "Payment", question: "How do I pay?", answer: "Payment is completed online during booking through Razorpay." },
       { category: "Coverage", question: "Which cities do you serve?", answer: "Use the pincode checker for the latest area-level availability." },
+      { category: "Booking", question: "Which vehicle type should I choose?", answer: "Choose by the size and shape of your vehicle:\n\n• Hatchback: a small car with no separate boot. For example Swift, Baleno, WagonR, i20, Tiago.\n• Sedan: a car with a separate boot at the back. For example Dzire, City, Verna, Ciaz, Amaze.\n• SUV / MUV: a tall car, or one with 6 to 8 seats. For example Creta, Brezza, Nexon, Venue, Ertiga, Innova.\n• Bike: any motorcycle or scooter. For example Activa, Splendor, Pulsar.\n\nEasy rule: a separate boot means Sedan. A tall car or 7 seats means SUV. Otherwise, it's a Hatchback.\n\nGood to know: Dzire, Aura and Tigor are Sedans. Brezza, Venue and Punch are SUVs.\n\nStill not sure? Pick the closest one. Your washer will confirm the right price before starting." },
     ],
     ctaTitle: "Ready to give your car a better wash?", ctaDescription: "Check your local availability, choose a package and reserve a time that works for you.", ctaButton: "Start booking",
   },
