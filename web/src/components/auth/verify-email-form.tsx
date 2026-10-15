@@ -7,6 +7,7 @@ import { Loader2, MailCheck } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { Field, FormAlert, OtpInput, useCooldown } from "./fields";
+import { toast } from "@/components/popups";
 
 export function VerifyEmailForm({ initialEmail, next, justSent }: { initialEmail: string; next: string; justSent: boolean }) {
   const router = useRouter();
@@ -32,6 +33,7 @@ export function VerifyEmailForm({ initialEmail, next, justSent }: { initialEmail
         method: "POST",
         body: { email, token: code },
       });
+      toast.success("Email verified", "You are all set.");
       router.replace(next || res.redirectTo);
       router.refresh();
     } catch (err) {
@@ -45,6 +47,7 @@ export function VerifyEmailForm({ initialEmail, next, justSent }: { initialEmail
     try {
       await api("/api/auth/resend-otp", { method: "POST", body: { email } });
       setNotice(`A new code is on its way to ${email}.`);
+      toast.info("Code sent", `A new code is on its way to ${email}.`);
       cooldown.start(60);
     } catch (err) {
       setError(err as ApiError);

@@ -39,6 +39,7 @@ function toRow(input: OfferInput): Partial<OfferRow> {
   if (input.priceServiceId !== undefined) row.price_service_id = input.priceServiceId;
   if (input.planMonths !== undefined) row.plan_months = input.planMonths;
   if (input.stackable !== undefined) row.stackable = input.stackable;
+  if (input.showPopup !== undefined) row.show_popup = input.showPopup;
   if (input.priority !== undefined) row.priority = input.priority;
   if (input.budget !== undefined) row.budget = input.budget;
   if (input.dailyLimit !== undefined) row.daily_limit = input.dailyLimit;

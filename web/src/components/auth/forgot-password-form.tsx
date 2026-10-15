@@ -7,6 +7,7 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { Field, FormAlert, OtpInput, PasswordInput, PasswordRules, passwordIsValid, useCooldown } from "./fields";
+import { toast } from "@/components/popups";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function ForgotPasswordForm() {
     try {
       await api("/api/auth/forgot-password", { method: "POST", body: { email } });
       setStep("reset");
+      toast.info("Code sent", `Check ${email} for your reset code.`);
       cooldown.start(60);
     } catch (err) {
       setError(err as ApiError);
@@ -44,6 +46,7 @@ export function ForgotPasswordForm() {
         method: "POST",
         body: { email, token: code, password },
       });
+      toast.success("Password updated", "You are now signed in.");
       router.replace(res.redirectTo);
       router.refresh();
     } catch (err) {

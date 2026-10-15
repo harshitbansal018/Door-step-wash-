@@ -160,6 +160,7 @@ const offerBase = z.object({
   priceServiceId: uuid.nullable().default(null),
   planMonths: z.number().int().min(1).max(12).default(1),
   stackable: z.boolean().default(false),
+  showPopup: z.boolean().default(false),
   priority: z.number().int().min(-100).max(100).default(0),
   budget: z.number().int().min(1).max(10_000_000).nullable().default(null),
   dailyLimit: z.number().int().min(1).max(100_000).nullable().default(null),

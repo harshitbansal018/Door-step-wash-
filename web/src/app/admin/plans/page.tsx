@@ -7,8 +7,12 @@ import { Pagination } from "@/components/pagination";
 import { api } from "@/lib/api";
 import { type City, SUBSCRIPTION_META, type Subscription, type SubscriptionStatus, VEHICLES, type VehicleType, WEEKDAYS } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, CardHeader, Input, Label, Modal, PageHeader, Select, Toggle } from "@/components/ui";
 import { EmptyState, LoadingState } from "@/components/data-state";
+
+// Action results show as toast alerts.
+const setNotice = (notice: { tone: "ok" | "error"; text: string } | null) => notice && (notice.tone === "ok" ? toast.success(notice.text) : toast.error(notice.text));
 
 interface AdminPlan {
   id: string;
@@ -75,7 +79,6 @@ export default function AdminPlansPage() {
   if (lastStatus !== subKey) { setLastStatus(subKey); setSubPage(1); }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   const fail = (caught: unknown, fallback: string) =>
     setNotice({ tone: "error", text: caught instanceof Error ? caught.message : fallback });
@@ -248,11 +251,6 @@ export default function AdminPlansPage() {
           </div>
         }
       />
-      {notice && (
-        <div role="status" className={`mb-4 rounded-lg p-3 text-sm ${notice.tone === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-          {notice.text}
-        </div>
-      )}
 
       <div className="mb-5 max-w-sm">
         <Label htmlFor="plan-city">Pricing city</Label>

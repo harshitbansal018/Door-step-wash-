@@ -8,6 +8,7 @@ import { type CatalogService, type Coverage, type Quote, type Slot, VEHICLES, ty
 import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
 import { cn, formatMoney } from "@/lib/utils";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+import { toast } from "@/components/popups";
 
 type CreateResult = { booking: { id: string; code: string; total: number }; quote: Quote; checkout: Checkout | null; paymentSkipped: boolean };
 
@@ -145,9 +146,11 @@ export function BookingWizard({
         body: { code: coupon, pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined },
       });
       setQuote(data);
+      toast.success("Coupon applied", `${coupon} was added to your order.`);
     } catch (caught) {
       setQuote(null);
       setError(caught instanceof Error ? caught.message : "Could not apply this coupon.");
+      toast.error("Coupon not applied", caught instanceof Error ? caught.message : "Could not apply this coupon.");
     } finally {
       setBusy(false);
     }
@@ -180,6 +183,7 @@ export function BookingWizard({
       });
       if (!result.checkout) {
         setConfirmed({ id: result.booking.id, code: result.booking.code, paid: !result.paymentSkipped });
+        toast.success("Booking confirmed", `Your booking code is ${result.booking.code}.`);
         setBusy(false);
         return;
       }
@@ -188,6 +192,7 @@ export function BookingWizard({
         response = await openCheckout(result.checkout);
       } catch (caught) {
         setBusy(false);
+        if (caught instanceof CheckoutDismissed) toast.warning("Payment not completed", "Your slot is held briefly. Complete payment to confirm.");
         setError(
           caught instanceof CheckoutDismissed
             ? "Payment was not completed. Your slot is held briefly; start a new booking if it expires."
@@ -207,8 +212,10 @@ export function BookingWizard({
           },
         });
         setConfirmed({ id: result.booking.id, code: result.booking.code, paid: true });
+        toast.success("Booking confirmed", `Payment received for booking ${result.booking.code}.`);
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : "Payment verification failed.");
+        toast.error("Payment failed", caught instanceof Error ? caught.message : "Payment verification failed.");
       } finally {
         setBusy(false);
       }

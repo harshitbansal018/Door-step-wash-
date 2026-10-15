@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarPlus, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { EmptyState, LoadingState } from "@/components/data-state";
+import { confirmDialog, toast } from "@/components/popups";
 import { Button, Card, Input, Label, Modal, PageHeader, Select, Toggle } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { City } from "@/lib/domain";
@@ -21,7 +22,7 @@ export default function AdminSlotsPage() {
   const [slotLoading, setSlotLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const setNotice = (text: string) => text && toast.success(text);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<AdminSlot | null>(null);
   const [form, setForm] = useState<SlotForm>({ areaId: "", date: today(), startTime: "08:00", endTime: "09:00", capacity: "1", isBlocked: false });
@@ -89,7 +90,7 @@ export default function AdminSlotsPage() {
   }
 
   async function remove(slot: AdminSlot) {
-    if (!window.confirm(`Permanently delete the ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)} slot on ${slot.slot_date}?`)) return;
+    if (!(await confirmDialog({ title: "Delete slot?", message: `Permanently delete the ${slot.start_time.slice(0, 5)}–${slot.end_time.slice(0, 5)} slot on ${slot.slot_date}?`, confirmLabel: "Delete slot" }))) return;
     setSaving(true); setError(""); setNotice("");
     try { await api(`/api/admin/slots/${slot.id}`, { method: "DELETE" }); setNotice("Time slot deleted."); await loadSlots(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not delete slot. Block it instead if it has booking history."); }
@@ -117,7 +118,6 @@ export default function AdminSlotsPage() {
   return <>
     <PageHeader title="Time slots" description="Create, edit, block and delete individual booking slots." action={<div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={generate} disabled={saving}><CalendarPlus className="size-4" />Generate 14 days</Button><Button onClick={openCreate} disabled={!areas.length || saving}><Plus className="size-4" />Add slot</Button></div>} />
     {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {notice && <div role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{notice}</div>}
     <div className="mb-5 grid gap-3 sm:grid-cols-2"><div><Label htmlFor="slot-area">Area</Label><Select id="slot-area" value={areaId} onChange={(event) => setAreaId(event.target.value)}><option value="">Select an area</option>{areas.map((area) => <option key={area.id} value={area.id}>{area.city} · {area.name}</option>)}</Select></div><div><Label htmlFor="slot-date">Date</Label><Input id="slot-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div></div>
     {loading || slotLoading ? <LoadingState /> : !areaId ? <EmptyState title="No service areas" description="Create a city and service area before adding time slots." /> : !slots.length ? <EmptyState title="No slots" description="Add an individual slot or generate slots for active locations." /> : <Card className="overflow-hidden"><div className="divide-y">{slots.map((slot) => <div key={slot.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"><div className="flex-1"><strong>{slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}</strong><p className="text-xs text-slate-500">{slot.booked} booked of {slot.capacity}{slot.is_blocked ? " · blocked" : ""}</p></div><div className="flex flex-wrap items-center gap-2"><Label htmlFor={`capacity-${slot.id}`}>Capacity</Label><Input id={`capacity-${slot.id}`} className="w-20" type="number" min={slot.booked} max="50" defaultValue={slot.capacity} onBlur={(event) => { const value = Number(event.target.value); if (value !== slot.capacity) void update(slot, { capacity: value }); }} /><span className="text-sm">Blocked</span><Toggle checked={slot.is_blocked} onChange={(value) => update(slot, { isBlocked: value })} label={`Block ${slot.start_time}`} /><Button size="sm" variant="ghost" onClick={() => openEdit(slot)}><Pencil className="size-4" />Edit</Button><Button size="sm" variant="ghost" disabled={saving} onClick={() => remove(slot)}><Trash2 className="size-4 text-red-600" /><span className="sr-only">Delete slot</span></Button></div></div>)}</div></Card>}
     <Modal open={adding} onClose={() => setAdding(false)} title="Add time slot" footer={<><Button variant="secondary" onClick={() => setAdding(false)}>Cancel</Button><Button disabled={saving || !validForm} onClick={create}>{saving && <Loader2 className="size-4 animate-spin" />}Create slot</Button></>}>{fields}</Modal>

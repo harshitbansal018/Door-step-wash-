@@ -8,7 +8,11 @@ import { api } from "@/lib/api";
 import { type City, VEHICLES, type VehicleType, WEEKDAYS } from "@/lib/domain";
 import { formatMoney } from "@/lib/utils";
 import { EmptyState, LoadingState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Select, Toggle } from "@/components/ui";
+
+// Action results show as toast alerts.
+const setNotice = (notice: { tone: "ok" | "error"; text: string } | null) => notice && (notice.tone === "ok" ? toast.success(notice.text) : toast.error(notice.text));
 
 type DiscountType = "flat" | "percent" | "fixed_price" | "price_match" | "free_area_charge";
 type UserType = "all" | "new" | "returning" | "inactive" | "subscribers" | "list";
@@ -46,6 +50,7 @@ interface Offer {
   price_service_id?: string | null;
   plan_months?: number;
   stackable?: boolean;
+  show_popup?: boolean;
   priority?: number;
   budget?: number | null;
   daily_limit?: number | null;
@@ -86,6 +91,7 @@ type Draft = {
   budget: string;
   autoApply: boolean;
   stackable: boolean;
+  showPopup: boolean;
   priority: string;
   isActive: boolean;
   terms: string;
@@ -149,6 +155,7 @@ const emptyDraft = (): Draft => ({
   budget: "",
   autoApply: false,
   stackable: false,
+  showPopup: false,
   priority: "0",
   isActive: true,
   terms: "",
@@ -185,6 +192,7 @@ const toDraft = (offer: Offer): Draft => ({
   budget: offer.budget ? String(offer.budget) : "",
   autoApply: offer.auto_apply,
   stackable: offer.stackable ?? false,
+  showPopup: offer.show_popup ?? false,
   priority: String(offer.priority ?? 0),
   isActive: offer.is_active,
   terms: offer.terms ?? "",
@@ -224,6 +232,7 @@ const toBody = (draft: Draft) => ({
   budget: numOrNull(draft.budget),
   autoApply: draft.autoApply,
   stackable: draft.stackable,
+  showPopup: draft.showPopup,
   priority: Number(draft.priority) || 0,
   isActive: draft.isActive,
   terms: draft.terms.trim() || null,
@@ -421,6 +430,7 @@ function OfferFields({
       <Section title="How it applies">
         <Check checked={draft.autoApply} onChange={(autoApply) => onChange({ autoApply })}>Apply automatically when the customer qualifies (no code needed)</Check>
         <Check checked={draft.stackable} onChange={(stackable) => onChange({ stackable })}>Can combine with other combinable offers</Check>
+        <Check checked={draft.showPopup} onChange={(showPopup) => onChange({ showPopup })}>Show as a popup on the homepage</Check>
         <div><Label htmlFor="priority">Priority (higher applies first when combined)</Label><Input id="priority" type="number" min="-100" max="100" value={draft.priority} onChange={(event) => onChange({ priority: event.target.value })} /></div>
         <div className="sm:col-span-2"><Label htmlFor="terms">Terms shown to customers (optional)</Label><Input id="terms" maxLength={300} value={draft.terms} onChange={(event) => onChange({ terms: event.target.value })} /></div>
         <Check checked={draft.isActive} onChange={(isActive) => onChange({ isActive })}>Offer is active</Check>
@@ -441,7 +451,6 @@ export default function AdminOffersPage() {
   const [plans, setPlans] = useState<ServiceOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [editing, setEditing] = useState<Offer | "new" | null>(null);
   const [deleting, setDeleting] = useState<Offer | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -534,7 +543,6 @@ export default function AdminOffersPage() {
       <SearchBox value={search} onChange={setSearch} label="Search offers" placeholder="Code or title" className="sm:max-w-xs" />
       <FilterPills label="Offer state" value={state} onChange={setState} options={[{ id: "", label: "All" }, { id: "active", label: "Live" }, { id: "scheduled", label: "Scheduled" }, { id: "expired", label: "Expired" }, { id: "inactive", label: "Turned off" }]} />
     </FilterBar>
-    {notice && <div role="status" className={`mb-4 rounded-lg p-3 text-sm ${notice.tone === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{notice.text}</div>}
     {loading ? <LoadingState /> : !offers.length ? <EmptyState title="No offers" description="Create a coupon or automatic promotion." /> : <div className="grid gap-4 lg:grid-cols-2">{offers.map((offer) => {
       const expired = new Date(offer.valid_to) < new Date();
       return <Card key={offer.id} className="p-5"><div className="flex flex-col gap-4 sm:flex-row sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Tag className="size-4 text-brand-600" /><strong>{offer.code}</strong><Badge tone={offer.is_active && !expired ? "green" : "slate"}>{expired ? "Expired" : offer.is_active ? "Active" : "Inactive"}</Badge>{offer.auto_apply && <Badge tone="blue">Automatic</Badge>}{offer.stackable && <Badge tone="violet">Combinable</Badge>}</div><p className="mt-2 font-medium text-slate-900">{offer.title}</p><p className="mt-1 text-sm text-slate-500">{describe(offer, services)}{offer.min_order ? ` · minimum ${formatMoney(offer.min_order)}` : ""}</p><p className="mt-2 text-xs text-slate-500">Used {offer.used_count}{offer.usage_limit ? ` of ${offer.usage_limit}` : " times"} · {formatMoney(offer.discount_given ?? 0)} given{offer.budget ? ` of ${formatMoney(offer.budget)}` : ""} · {new Date(offer.valid_from).toLocaleDateString("en-IN")}–{new Date(offer.valid_to).toLocaleDateString("en-IN")}</p><p className="mt-1 text-xs text-slate-500">{offer.city_ids.length ? `${offer.city_ids.length} selected cit${offer.city_ids.length === 1 ? "y" : "ies"}` : "All cities"} · {offer.service_ids.length ? `${offer.service_ids.length} selected service${offer.service_ids.length === 1 ? "" : "s"}` : "All services"}</p></div><div className="flex shrink-0 flex-wrap items-center gap-2"><Toggle checked={offer.is_active} onChange={(value) => void toggle(offer, value)} label={`Toggle ${offer.code}`} /><Button size="sm" variant="secondary" disabled={saving} onClick={() => openEdit(offer)}><Pencil className="size-4" />Edit</Button><Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" disabled={saving} onClick={() => setDeleting(offer)}><Trash2 className="size-4" />Delete</Button></div></div></Card>;

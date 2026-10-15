@@ -5,8 +5,12 @@ import { CalendarPlus, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { City, VehicleType } from "@/lib/domain";
 import { VEHICLES } from "@/lib/domain";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Select, Toggle } from "@/components/ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+
+// Action results show as toast alerts.
+const setNotice = (notice: { tone: "ok" | "error"; text: string } | null) => notice && (notice.tone === "ok" ? toast.success(notice.text) : toast.error(notice.text));
 
 interface AdminService {
   id: string;
@@ -68,7 +72,6 @@ export default function AdminServicesPage() {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [adding, setAdding] = useState(false);
   const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
   const [deleting, setDeleting] = useState<AdminService | null>(null);
@@ -200,11 +203,6 @@ export default function AdminServicesPage() {
           </div>
         }
       />
-      {notice && (
-        <div role="status" className={`mb-4 rounded-lg p-3 text-sm ${notice.tone === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-          {notice.text}
-        </div>
-      )}
       <div className="mb-5 max-w-sm">
         <Label htmlFor="pricing-city">Pricing city</Label>
         <Select id="pricing-city" value={cityId} onChange={(event) => setCityId(event.target.value)}>

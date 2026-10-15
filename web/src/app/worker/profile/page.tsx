@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/auth/logout-button";
 import { api } from "@/lib/api";
 import type { WorkerMe } from "@/lib/domain";
 import { ErrorState, LoadingState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, PageHeader } from "@/components/ui";
 
 export default function WorkerProfilePage() {
@@ -48,6 +49,7 @@ export default function WorkerProfilePage() {
       await api("/api/worker/kyc", { method: "POST", body });
       setFile(null);
       setMessage("KYC document uploaded. An administrator can now review it.");
+      toast.success("KYC uploaded", "An administrator can now review it.");
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not upload the KYC document.");

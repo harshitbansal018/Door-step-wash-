@@ -1,10 +1,11 @@
 import "server-only";
 import { unprocessable } from "../lib/errors";
-import type { Db } from "../lib/supabase";
+import { createAdminClient, type Db } from "../lib/supabase";
 import { todayIn, zonedToUtc } from "../lib/time";
 import { bookingModel } from "../models/booking.model";
 import { offerModel } from "../models/offer.model";
 import type { OfferRow, VehicleType } from "../types/db";
+import type { PopupOffer } from "@/components/site/promo-popup";
 
 /** Everything an offer rule can look at. Built by the pricing code for one order. */
 export interface OfferContext {
@@ -289,6 +290,26 @@ export const offerService = {
       })
       .filter((a) => a.discount > 0);
     return { applied, discount: applied.reduce((s, a) => s + a.discount, 0) };
+  },
+
+  /** The offer to feature in the homepage popup, shaped for the browser. Never throws. */
+  async popup(): Promise<PopupOffer | null> {
+    try {
+      const offer = await offerModel.findPopup(createAdminClient());
+      if (!offer || (offer.usage_limit !== null && offer.used_count >= offer.usage_limit)) return null;
+      return {
+        id: offer.id,
+        code: offer.code,
+        autoApply: offer.auto_apply,
+        title: offer.title,
+        headline: describeOffer(offer),
+        terms: offer.terms,
+        validTo: offer.valid_to,
+        forPlans: offer.applies_to === "plan",
+      };
+    } catch {
+      return null;
+    }
   },
 
   /** Kept for callers that only want the best single automatic offer. */

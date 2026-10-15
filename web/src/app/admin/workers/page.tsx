@@ -7,6 +7,7 @@ import { FilterBar, SearchBox, useDebounced } from "@/components/filters";
 import { api } from "@/lib/api";
 import type { City, Worker, WorkerStatus } from "@/lib/domain";
 import { PasswordInput, PasswordRules, passwordIsValid } from "@/components/auth/fields";
+import { toast } from "@/components/popups";
 import { Avatar, Badge, Button, Card, Input, Label, Modal, PageHeader, Select, StatCard } from "@/components/ui";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 
@@ -50,14 +51,14 @@ export default function AdminWorkersPage() {
 
   async function createWorker() {
     setSaving(true); setError("");
-    try { await api("/api/admin/workers", { method: "POST", body: { fullName: form.fullName, email: form.email, password: form.password, phone: form.phone, areaId: form.areaId, commissionRate: Number(form.commissionRate) / 100 } }); setAdding(false); setForm((old) => ({ ...old, fullName: "", email: "", password: "", confirmPassword: "", phone: "" })); await load(); }
+    try { await api("/api/admin/workers", { method: "POST", body: { fullName: form.fullName, email: form.email, password: form.password, phone: form.phone, areaId: form.areaId, commissionRate: Number(form.commissionRate) / 100 } }); setAdding(false); setForm((old) => ({ ...old, fullName: "", email: "", password: "", confirmPassword: "", phone: "" })); toast.success("Worker created."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create worker."); }
     finally { setSaving(false); }
   }
 
   async function updateWorker(worker: Worker, status: WorkerStatus) {
     setSaving(true); setError("");
-    try { await api(`/api/admin/workers/${worker.id}`, { method: "PATCH", body: { status } }); await load(); }
+    try { await api(`/api/admin/workers/${worker.id}`, { method: "PATCH", body: { status } }); toast.success(`Worker marked ${status}.`); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update worker."); }
     finally { setSaving(false); }
   }
@@ -65,7 +66,7 @@ export default function AdminWorkersPage() {
   async function uploadKyc() {
     if (!uploading || !file) return;
     setSaving(true); setError("");
-    try { const body = new FormData(); body.set("file", file); await api(`/api/admin/workers/${uploading.id}/kyc`, { method: "POST", body }); setUploading(null); setFile(null); await load(); }
+    try { const body = new FormData(); body.set("file", file); await api(`/api/admin/workers/${uploading.id}/kyc`, { method: "POST", body }); setUploading(null); setFile(null); toast.success("KYC document uploaded."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not upload KYC."); }
     finally { setSaving(false); }
   }
@@ -73,7 +74,7 @@ export default function AdminWorkersPage() {
   async function saveWorker() {
     if (!editing) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/workers/${editing.id}`, { method: "PATCH", body: { fullName: editForm.fullName, email: editForm.email, ...(editForm.password ? { password: editForm.password } : {}), status: editForm.status, areaId: editForm.areaId, commissionRate: Number(editForm.commissionRate) / 100, phone: editForm.phone, bankLast4: editForm.bankLast4 || null } }); setEditing(null); setEditForm((old) => ({ ...old, password: "", confirmPassword: "" })); await load(); }
+    try { await api(`/api/admin/workers/${editing.id}`, { method: "PATCH", body: { fullName: editForm.fullName, email: editForm.email, ...(editForm.password ? { password: editForm.password } : {}), status: editForm.status, areaId: editForm.areaId, commissionRate: Number(editForm.commissionRate) / 100, phone: editForm.phone, bankLast4: editForm.bankLast4 || null } }); setEditing(null); setEditForm((old) => ({ ...old, password: "", confirmPassword: "" })); toast.success("Worker updated."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update worker."); }
     finally { setSaving(false); }
   }

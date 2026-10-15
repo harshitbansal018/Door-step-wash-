@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Popups } from "@/components/popups";
 import { siteContentService } from "@/server/services/site-content.service";
 import "./globals.css";
 
@@ -20,7 +21,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: motionGate }} />
       </head>
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        {children}
+        <Popups />
+      </body>
     </html>
   );
 }

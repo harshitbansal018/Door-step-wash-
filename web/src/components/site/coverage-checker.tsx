@@ -6,6 +6,7 @@ import { ArrowRight, CheckCircle2, Clock, Loader2, MapPin, XCircle } from "lucid
 import { api } from "@/lib/api";
 import type { Coverage } from "@/lib/domain";
 import { Button, Input } from "@/components/ui";
+import { toast } from "@/components/popups";
 
 export function CoverageChecker() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export function CoverageChecker() {
     try {
       await api("/api/waitlist", { method: "POST", body: { email, pincode } });
       setNotified(true);
+      toast.success("You are on the list", "We will email you when we reach your area.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not join the waitlist.");
     } finally {

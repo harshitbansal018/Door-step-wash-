@@ -9,6 +9,7 @@ import { type CatalogPlan, type PlanOptions, type PlanQuote, VEHICLES, type Vehi
 import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
+import { toast } from "@/components/popups";
 
 type StartResult = {
   subscription: { id: string; code: string; total: number };
@@ -127,6 +128,7 @@ export function PlanWizard({
           // A code that does not apply is dropped so the plain price still shows.
           if (appliedCode) {
             setAppliedCode("");
+            toast.error("Coupon not applied", caught.message);
             setError(caught.message);
             return;
           }
@@ -180,6 +182,7 @@ export function PlanWizard({
       });
       if (!result.checkout) {
         setConfirmed(result);
+        toast.success("Plan started", "Your monthly plan is now active.");
         return;
       }
       let response;
@@ -187,6 +190,7 @@ export function PlanWizard({
         response = await openCheckout(result.checkout);
       } catch (caught) {
         setError(caught instanceof CheckoutDismissed ? "Payment was not completed. Your plan starts once the first month is paid." : caught instanceof Error ? caught.message : "Could not open the payment window.");
+        if (caught instanceof CheckoutDismissed) toast.warning("Payment not completed", "Your plan starts once the first month is paid.");
         return;
       }
       await api("/api/payments/verify", {
@@ -194,6 +198,7 @@ export function PlanWizard({
         body: { orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature },
       });
       setConfirmed(result);
+      toast.success("Plan started", "Your first month is paid. See you on your first visit!");
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "PLAN_EXISTS") setExistingPlan(true);
       setError(caught instanceof Error ? caught.message : "Could not start the plan.");

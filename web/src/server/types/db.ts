@@ -221,6 +221,7 @@ export interface OfferRow {
   price_service_id: string | null;
   plan_months: number;
   stackable: boolean;
+  show_popup: boolean;
   priority: number;
   budget: number | null;
   daily_limit: number | null;

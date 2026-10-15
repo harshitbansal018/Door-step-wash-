@@ -17,6 +17,22 @@ export const offerModel = {
     return check(await db.from("offers").select("*").order("created_at", { ascending: false })) as OfferRow[];
   },
 
+  /** The highest-priority live offer flagged for the homepage popup. */
+  async findPopup(db: Db): Promise<OfferRow | null> {
+    const now = new Date().toISOString();
+    const { data, error } = await db
+      .from("offers")
+      .select("*")
+      .eq("show_popup", true)
+      .eq("is_active", true)
+      .lte("valid_from", now)
+      .gt("valid_to", now)
+      .order("priority", { ascending: false })
+      .limit(1);
+    if (error) throw error;
+    return (data?.[0] as OfferRow | undefined) ?? null;
+  },
+
   async list(db: Db, from: number, to: number, f: { search?: string; state?: "active" | "scheduled" | "expired" | "inactive" } = {}) {
     const now = new Date().toISOString();
     let q = db.from("offers").select("*", { count: "exact" }).order("created_at", { ascending: false });

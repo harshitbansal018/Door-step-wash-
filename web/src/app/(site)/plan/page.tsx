@@ -9,6 +9,7 @@ import { type PlanOptions, SUBSCRIPTION_META, type SubscriptionSummary, type Sub
 import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { ErrorState, LoadingState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, StatusBadge } from "@/components/ui";
 
 type RenewResult = { checkout: Checkout | null; paymentSkipped: boolean };
@@ -102,10 +103,12 @@ export default function MyPlanPage() {
     setError("");
     try {
       await api(`/api/subscriptions/${sub.id}/${path}`, { method: path === "visit" ? "PATCH" : "POST", body });
+      toast.success("Plan updated");
       setAction(null);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be updated.");
+      toast.error("Could not update plan", caught instanceof Error ? caught.message : undefined);
     } finally {
       setSaving(false);
     }
@@ -124,9 +127,12 @@ export default function MyPlanPage() {
           body: { orderId: response.razorpay_order_id, paymentId: response.razorpay_payment_id, signature: response.razorpay_signature },
         });
       }
+      toast.success("Plan renewed", "Your next month is paid.");
       await load();
     } catch (caught) {
       setError(caught instanceof CheckoutDismissed ? "Payment was not completed." : caught instanceof Error ? caught.message : "Could not renew the plan.");
+      if (caught instanceof CheckoutDismissed) toast.warning("Payment not completed");
+      else toast.error("Renewal failed", caught instanceof Error ? caught.message : undefined);
     } finally {
       setSaving(false);
     }

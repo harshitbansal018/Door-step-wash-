@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
 import { ErrorState, LoadingState } from "@/components/data-state";
+import { confirmDialog, toast } from "@/components/popups";
 import { Button, Card, Input, Label, PageHeader } from "@/components/ui";
 import { api } from "@/lib/api";
 import { DEFAULT_SITE_CONTENT, type SiteContent } from "@/lib/cms";
@@ -57,7 +58,7 @@ export default function AdminContentPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const setSuccess = (text: string) => text && toast.success(text);
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
@@ -93,15 +94,14 @@ export default function AdminContentPage() {
     finally { setSaving(false); }
   }
 
-  function resetSection() {
-    if (!content || !window.confirm(`Reset ${SECTIONS.find((item) => item.key === section)?.label} to its original copy?`)) return;
+  async function resetSection() {
+    if (!content || !(await confirmDialog({ title: "Reset section?", message: `Reset ${SECTIONS.find((item) => item.key === section)?.label} to its original copy?`, confirmLabel: "Reset" }))) return;
     setContent({ ...content, [section]: structuredClone(DEFAULT_SITE_CONTENT[section]) }); setSuccess("");
   }
 
   return <>
     <PageHeader title="Site content" description="Edit and publish the public website without changing code." action={<div className="flex gap-2"><Button variant="secondary" onClick={resetSection} disabled={!content || saving}><RotateCcw className="size-4" />Reset section</Button><Button onClick={save} disabled={!content || saving}>{saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}Publish changes</Button></div>} />
     {error && <div role="alert" className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {success && <div role="status" className="mb-5 flex items-center gap-2 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"><CheckCircle2 className="size-4" />{success}</div>}
     {loading ? <LoadingState /> : !content ? <ErrorState message="Site content could not be loaded." retry={load} /> : <div className="grid gap-6 xl:grid-cols-[240px_1fr]">
       <Card className="h-fit p-2">{SECTIONS.map((item) => <button key={item.key} type="button" onClick={() => setSection(item.key)} className={cn("w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium transition", section === item.key ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50")}>{item.label}</button>)}</Card>
       <Card className="p-5 sm:p-7"><div className="mb-6 border-b border-slate-200 pb-5"><h2 className="text-xl font-bold text-slate-950">{SECTIONS.find((item) => item.key === section)?.label}</h2><p className="mt-1 text-sm text-slate-500">{SECTIONS.find((item) => item.key === section)?.description}</p></div><ContentField name={section} value={content[section] as unknown as JsonValue} path={[section]} onChange={update} /></Card>

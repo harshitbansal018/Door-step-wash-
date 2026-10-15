@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { Field, FormAlert, PasswordInput } from "./fields";
+import { toast } from "@/components/popups";
 
 type AuthResult = { redirectTo: string };
 
@@ -23,6 +24,7 @@ export function LoginForm({ next, notConfigured }: { next: string; notConfigured
     setError(null);
     try {
       const res = await api<AuthResult>("/api/auth/login", { method: "POST", body: { email, password } });
+      toast.success("Welcome back!", "You are now signed in.");
       router.replace(next || res.redirectTo);
       router.refresh();
     } catch (err) {

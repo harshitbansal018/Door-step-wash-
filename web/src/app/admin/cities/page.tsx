@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { confirmDialog, toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Toggle } from "@/components/ui";
 import { api } from "@/lib/api";
 import type { Area, City } from "@/lib/domain";
@@ -55,7 +56,7 @@ export default function AdminCitiesPage() {
 
   async function createCity() {
     setSaving(true); setError("");
-    try { await api("/api/admin/cities", { method: "POST", body: cityPayload() }); setAddingCity(false); setCityForm(emptyCity); await load(); }
+    try { await api("/api/admin/cities", { method: "POST", body: cityPayload() }); setAddingCity(false); setCityForm(emptyCity); toast.success("City added."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create city."); }
     finally { setSaving(false); }
   }
@@ -68,15 +69,15 @@ export default function AdminCitiesPage() {
   async function saveCity() {
     if (!editingCity) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/cities/${editingCity.id}`, { method: "PATCH", body: cityPayload() }); setEditingCity(null); setCityForm(emptyCity); await load(); }
+    try { await api(`/api/admin/cities/${editingCity.id}`, { method: "PATCH", body: cityPayload() }); setEditingCity(null); setCityForm(emptyCity); toast.success("City updated."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update city."); }
     finally { setSaving(false); }
   }
 
   async function deleteCity(city: City) {
-    if (!window.confirm(`Permanently delete ${city.name} and all of its unused areas, pincodes, prices and future slots? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: `Delete ${city.name}?`, message: "This permanently deletes the city and all of its unused areas, pincodes, prices and future slots. This cannot be undone.", confirmLabel: "Delete city" }))) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/cities/${city.id}`, { method: "DELETE" }); await load(); }
+    try { await api(`/api/admin/cities/${city.id}`, { method: "DELETE" }); toast.success(`${city.name} deleted.`); await load(); }
     catch (caught) { setError(caught instanceof Error ? `${caught.message} Deactivate the city instead if it has booking or worker history.` : "Could not delete city."); }
     finally { setSaving(false); }
   }
@@ -84,7 +85,7 @@ export default function AdminCitiesPage() {
   async function createArea() {
     if (!areaCity) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/cities/${areaCity.id}/areas`, { method: "POST", body: { name: areaForm.name, extraCharge: Number(areaForm.extraCharge), pincodes: pincodeList(areaForm.pincodes) } }); setAreaCity(null); setAreaForm(emptyArea); await load(); }
+    try { await api(`/api/admin/cities/${areaCity.id}/areas`, { method: "POST", body: { name: areaForm.name, extraCharge: Number(areaForm.extraCharge), pincodes: pincodeList(areaForm.pincodes) } }); setAreaCity(null); setAreaForm(emptyArea); toast.success("Area added."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create area."); }
     finally { setSaving(false); }
   }
@@ -97,25 +98,25 @@ export default function AdminCitiesPage() {
   async function saveArea() {
     if (!editingArea) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/areas/${editingArea.id}`, { method: "PATCH", body: { name: areaForm.name, extraCharge: Number(areaForm.extraCharge), pincodes: pincodeList(areaForm.pincodes) } }); setEditingArea(null); setAreaForm(emptyArea); await load(); }
+    try { await api(`/api/admin/areas/${editingArea.id}`, { method: "PATCH", body: { name: areaForm.name, extraCharge: Number(areaForm.extraCharge), pincodes: pincodeList(areaForm.pincodes) } }); setEditingArea(null); setAreaForm(emptyArea); toast.success("Area updated."); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update area."); }
     finally { setSaving(false); }
   }
 
   async function toggleCity(city: City, isActive: boolean) {
-    try { await api(`/api/admin/cities/${city.id}`, { method: "PATCH", body: { isActive } }); await load(); }
+    try { await api(`/api/admin/cities/${city.id}`, { method: "PATCH", body: { isActive } }); toast.success(`${city.name} ${isActive ? "activated" : "deactivated"}.`); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update city."); }
   }
 
   async function toggleArea(area: Area, isActive: boolean) {
-    try { await api(`/api/admin/areas/${area.id}`, { method: "PATCH", body: { isActive } }); await load(); }
+    try { await api(`/api/admin/areas/${area.id}`, { method: "PATCH", body: { isActive } }); toast.success(`${area.name} ${isActive ? "activated" : "deactivated"}.`); await load(); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not update area."); }
   }
 
   async function deleteArea(area: Area) {
-    if (!window.confirm(`Permanently delete ${area.name}, its pincodes and future slots? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ title: `Delete ${area.name}?`, message: "This permanently deletes the area, its pincodes and future slots. This cannot be undone.", confirmLabel: "Delete area" }))) return;
     setSaving(true); setError("");
-    try { await api(`/api/admin/areas/${area.id}`, { method: "DELETE" }); await load(); }
+    try { await api(`/api/admin/areas/${area.id}`, { method: "DELETE" }); toast.success(`${area.name} deleted.`); await load(); }
     catch (caught) { setError(caught instanceof Error ? `${caught.message} Deactivate the area instead if it has booking history.` : "Could not delete area."); }
     finally { setSaving(false); }
   }

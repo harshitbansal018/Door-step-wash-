@@ -29,6 +29,7 @@ import { JOB_ISSUE_OPTIONS, type JobIssueReason, type WorkerJob } from "@/lib/do
 import { compressImage, mapsLink, whatsappLink } from "@/lib/image";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { ErrorState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Button, Card, Label, Modal, Skeleton, StatusBadge } from "@/components/ui";
 
 const PARKING: Record<string, string> = { basement: "Basement", open: "Open parking", covered: "Covered garage", street: "Street" };
@@ -209,23 +210,25 @@ export default function WorkerJobPage() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
-  async function run(work: () => Promise<unknown>, fallback: string) {
+  async function run(work: () => Promise<unknown>, fallback: string, success?: string) {
     setSaving(true);
     setError("");
     try {
       await work();
+      if (success) toast.success(success);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : fallback);
+      toast.error(fallback, caught instanceof Error ? caught.message : undefined);
     } finally {
       setSaving(false);
     }
   }
 
-  const respond = (accept: boolean) => run(() => api(`/api/worker/jobs/${id}/respond`, { method: "POST", body: { accept } }), "Could not respond.");
+  const respond = (accept: boolean) => run(() => api(`/api/worker/jobs/${id}/respond`, { method: "POST", body: { accept } }), "Could not respond.", accept ? "Job accepted" : "Job declined");
   const progress = (status: "on_the_way" | "in_progress" | "completed") =>
-    run(() => api(`/api/worker/jobs/${id}/progress`, { method: "POST", body: { status } }), "Could not update the job.");
-  const arrive = () => run(() => api(`/api/worker/jobs/${id}/arrive`, { method: "POST" }), "Could not mark arrival.");
+    run(() => api(`/api/worker/jobs/${id}/progress`, { method: "POST", body: { status } }), "Could not update the job.", { on_the_way: "Marked on the way", in_progress: "Wash started", completed: "Job completed" }[status]);
+  const arrive = () => run(() => api(`/api/worker/jobs/${id}/arrive`, { method: "POST" }), "Could not mark arrival.", "Arrival marked");
 
   async function upload(kind: "before" | "after", files: FileList) {
     setUploading(kind);
@@ -237,8 +240,10 @@ export default function WorkerJobPage() {
         body.set("file", await compressImage(file));
         await api(`/api/worker/jobs/${id}/photos`, { method: "POST", body });
       }
+      toast.success(files.length > 1 ? "Photos uploaded" : "Photo uploaded");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not upload the photo.");
+      toast.error("Upload failed", caught instanceof Error ? caught.message : undefined);
     } finally {
       setUploading(null);
       await load();

@@ -9,6 +9,7 @@ import type { Booking, BookingDetails, Slot } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { CustomerBookingDetails } from "@/components/site/booking-details";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Select, StatusBadge } from "@/components/ui";
 
 type BookingList = { items: Booking[]; page: number; pageSize: number; total: number };
@@ -62,8 +63,9 @@ export default function BookingsPage() {
       if (action.kind === "cancel") await api(`/api/bookings/${action.booking.id}/cancel`, { method: "POST", body: { reason: reason || undefined } });
       if (action.kind === "review") await api(`/api/bookings/${action.booking.id}/review`, { method: "POST", body: { rating: Number(rating), comment: comment || undefined } });
       if (action.kind === "reschedule") await api(`/api/bookings/${action.booking.id}/reschedule`, { method: "POST", body: { slotId } });
+      toast.success({ cancel: "Booking cancelled", review: "Thanks for your review!", reschedule: "Booking rescheduled" }[action.kind]);
       setAction(null); setReason(""); setComment(""); setSlotId(""); await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "The booking could not be updated."); }
+    } catch (caught) { const text = caught instanceof Error ? caught.message : "The booking could not be updated."; setError(text); toast.error("Could not update booking", text); }
     finally { setSaving(false); }
   }
   const closeDetails = () => { setViewing(null); setDetail(null); };

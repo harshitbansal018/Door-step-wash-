@@ -769,3 +769,30 @@ details summary::-webkit-details-marker {
   .aurora, .rays, .wave { animation: none; }
   .hero-glow { display: none; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Toast alerts (components/popups.tsx)                                */
+/* ------------------------------------------------------------------ */
+
+.toast-in {
+  animation: toast-in 320ms var(--ease-out-expo) both;
+}
+
+.toast-bar {
+  width: 100%;
+  animation-name: toast-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(24px); }
+}
+
+@keyframes toast-bar {
+  to { width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in { animation: none; }
+}

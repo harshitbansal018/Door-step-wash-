@@ -23,6 +23,8 @@ import { HomePreview } from "@/components/site/home-preview";
 import { Pricing } from "@/components/site/pricing";
 import { ServiceShowcase } from "@/components/site/service-showcase";
 import { Badge, Button } from "@/components/ui";
+import { PromoPopup } from "@/components/site/promo-popup";
+import { offerService } from "@/server/services/offer.service";
 import { siteContentService } from "@/server/services/site-content.service";
 
 const stepIcons = [CalendarCheck, Navigation, Sparkles];
@@ -63,10 +65,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage() {
-  const { home } = await siteContentService.get();
+  const [{ home }, popupOffer] = await Promise.all([siteContentService.get(), offerService.popup()]);
 
   return (
     <>
+      {popupOffer && <PromoPopup offer={popupOffer} />}
       <section className="relative isolate overflow-hidden">
         <HeroBackground />
         <div className="relative mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl items-center gap-14 px-4 py-16 pb-28 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:px-8 lg:py-20 lg:pb-32">

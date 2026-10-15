@@ -8,6 +8,7 @@ import type { WorkerJob, WorkerMe, WorkerToday } from "@/lib/domain";
 import { mapsLink } from "@/lib/image";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { ErrorState } from "@/components/data-state";
+import { toast } from "@/components/popups";
 import { Badge, Button, Card, Skeleton, StatusBadge } from "@/components/ui";
 import { ONLINE_EVENT } from "@/components/worker/worker-shell";
 
@@ -204,9 +205,11 @@ export default function WorkerToday() {
     setError("");
     try {
       await api(`/api/worker/jobs/${job.id}/respond`, { method: "POST", body: { accept } });
+      toast.success(accept ? "Job accepted" : "Job declined");
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not respond to the job.");
+      toast.error("Could not respond", caught instanceof Error ? caught.message : undefined);
     } finally {
       setBusyId("");
     }

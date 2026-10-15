@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
 import { Field, FormAlert, PasswordInput, PasswordRules, passwordIsValid } from "./fields";
+import { toast } from "@/components/popups";
 
 export function SignupForm({ next }: { next: string }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function SignupForm({ next }: { next: string }) {
     setError(null);
     try {
       await api("/api/auth/signup", { method: "POST", body: { fullName, email, password } });
+      toast.success("Account created", `We sent a verification code to ${email}.`);
       const params = new URLSearchParams({ email, sent: "1", ...(next ? { next } : {}) });
       router.push(`/verify-email?${params}`);
     } catch (err) {
