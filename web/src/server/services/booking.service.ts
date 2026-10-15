@@ -49,7 +49,8 @@ export function presentBooking(b: BookingDetail, opts: { showWorkerPhone?: boole
       carAccess: b.car_access,
     },
     contact: { name: b.contact_name, phone: b.contact_phone },
-    price: { base: b.base_price, areaCharge: b.area_charge, discount: b.discount, total: b.total },
+    price: { base: b.base_price, areaCharge: b.area_charge, addonsTotal: b.addons_total ?? 0, discount: b.discount, total: b.total },
+    addons: b.addons ?? [],
     worker: b.worker
       ? {
           name: b.worker.profile.full_name,
@@ -73,7 +74,7 @@ async function loadOwned(db: Db, customerId: string, bookingId: string) {
 export const bookingService = {
   async quote(
     auth: AuthContext,
-    input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code?: string; slotId?: string },
+    input: { pincode: string; serviceId: string; vehicleType: CreateBookingInput["vehicleType"]; code?: string; slotId?: string; addonIds?: string[] },
   ) {
     const db = createAdminClient();
     const area = await coverageService.assertServed(input.pincode);
@@ -88,6 +89,7 @@ export const bookingService = {
       vehicleType: input.vehicleType,
       customerId: auth.userId,
       offerCode: input.code,
+      addonIds: input.addonIds,
     });
   },
 
@@ -110,6 +112,7 @@ export const bookingService = {
       vehicleType: input.vehicleType,
       customerId: auth.userId,
       offerCode: input.offerCode,
+      addonIds: input.addonIds,
     });
 
     const booking = await bookingModel.create(
@@ -135,6 +138,8 @@ export const bookingService = {
         notes: input.notes ?? "",
         base_price: quote.basePrice,
         area_charge: quote.areaCharge,
+        addons: quote.addons,
+        addons_total: quote.addonsTotal,
         discount: quote.discount,
         total: quote.total,
       },

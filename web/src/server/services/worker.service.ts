@@ -54,7 +54,8 @@ function presentJob(b: BookingDetail, opts: { hasOpenIssue?: boolean } = {}) {
     contact: revealContact ? base.contact : { name: base.contact.name, phone: null },
     address: revealContact ? base.address : { ...base.address, line: "Shown after you accept", parkingSpot: null },
     notes: revealContact ? b.notes : null,
-    checklist: b.service.features,
+    // Add-ons the customer paid for are part of the job.
+    checklist: [...b.service.features, ...(b.addons ?? []).map((a) => `Add-on: ${a.name}`)],
     durationMin: b.service.duration_min,
     arrivedAt: b.arrived_at ?? null,
     // Last change of a job still waiting for a reply is when it was assigned.
@@ -126,7 +127,7 @@ export const workerService = {
     const rate = Number(worker.commission_rate);
     const withEarning = (b: BookingDetail) => ({
       ...presentJob(b, { hasOpenIssue: issues.has(b.id) }),
-      earning: Math.round((b.base_price + b.area_charge) * rate),
+      earning: Math.round((b.base_price + b.area_charge + (b.addons_total ?? 0)) * rate),
     });
     return {
       stats: {
@@ -169,7 +170,7 @@ export const workerService = {
     const issues = new Set(openIssues);
     const rate = Number(worker.commission_rate);
     return {
-      items: rows.map((b) => ({ ...presentJob(b, { hasOpenIssue: issues.has(b.id) }), earning: Math.round((b.base_price + b.area_charge) * rate) })),
+      items: rows.map((b) => ({ ...presentJob(b, { hasOpenIssue: issues.has(b.id) }), earning: Math.round((b.base_price + b.area_charge + (b.addons_total ?? 0)) * rate) })),
       page: q.page,
       pageSize: q.pageSize,
       total,
@@ -227,7 +228,7 @@ export const workerService = {
     const urls = await storageService.signedUrls(db, "photos", photos.map((p) => p.storage_path));
     return {
       ...presentJob(booking, { hasOpenIssue: issues.some((i) => !i.resolved_at) }),
-      earning: Math.round((booking.base_price + booking.area_charge) * Number(worker.commission_rate)),
+      earning: Math.round((booking.base_price + booking.area_charge + (booking.addons_total ?? 0)) * Number(worker.commission_rate)),
       photos: photos.map((p) => ({ id: p.id, kind: p.kind, url: urls.get(p.storage_path) ?? null })),
       issues: issues.map((i) => ({
         id: i.id,

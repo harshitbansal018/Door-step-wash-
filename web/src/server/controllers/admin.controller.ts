@@ -2,6 +2,7 @@ import "server-only";
 import { badRequest } from "../lib/errors";
 import { withAuth } from "../middlewares/auth.middleware";
 import { created, noContent, ok } from "../lib/response";
+import { addonService } from "../services/addon.service";
 import { adminBookingService } from "../services/admin-booking.service";
 import { adminCatalogService } from "../services/admin-catalog.service";
 import { adminCityService } from "../services/admin-city.service";
@@ -17,6 +18,7 @@ import {
   adminCancelSchema,
   adminSlotsQuery,
   assignSchema,
+  createAddonSchema,
   createAreaSchema,
   createCitySchema,
   createOfferSchema,
@@ -34,6 +36,7 @@ import {
   pricesQuery,
   refundSchema,
   setPricesSchema,
+  updateAddonSchema,
   updateAreaSchema,
   updateCitySchema,
   updateOfferSchema,
@@ -91,6 +94,15 @@ export const adminController = {
   ),
   deleteService: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
     await adminCatalogService.deleteService(uuid.parse(id));
+    return noContent();
+  }),
+  listAddons: withAuth(ADMIN, async () => ok(await addonService.listAll())),
+  createAddon: withAuth(ADMIN, async (req) => created(await addonService.create(await readJson(req, createAddonSchema)))),
+  updateAddon: withAuth<IdParams>(ADMIN, async (req, _a, { id }) =>
+    ok(await addonService.update(uuid.parse(id), await readJson(req, updateAddonSchema))),
+  ),
+  deleteAddon: withAuth<IdParams>(ADMIN, async (_req, _a, { id }) => {
+    await addonService.delete(uuid.parse(id));
     return noContent();
   }),
   setPrices: withAuth(ADMIN, async (req) => ok(await adminCatalogService.setPrices(await readJson(req, setPricesSchema)))),

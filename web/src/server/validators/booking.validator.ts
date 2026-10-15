@@ -12,6 +12,8 @@ export const catalogQuery = z.object({ areaId: uuid });
 export const slotsQuery = z.object({ areaId: uuid, date: isoDate });
 export const waitlistSchema = z.object({ email: z.email().trim().toLowerCase(), pincode });
 
+const addonIds = z.array(uuid).max(10);
+
 export const validateOfferSchema = z.object({
   code: offerCode.optional(),
   pincode,
@@ -19,6 +21,7 @@ export const validateOfferSchema = z.object({
   vehicleType,
   /** Lets day and time-window offers be checked once a slot is picked. */
   slotId: uuid.optional(),
+  addonIds: addonIds.optional(),
 });
 
 export const createBookingSchema = z.object({
@@ -43,6 +46,7 @@ export const createBookingSchema = z.object({
   contactPhone: phone,
   notes: trimmed(500).optional(),
   offerCode: offerCode.optional(),
+  addonIds: addonIds.default([]),
 });
 
 export const verifyPaymentSchema = z.object({

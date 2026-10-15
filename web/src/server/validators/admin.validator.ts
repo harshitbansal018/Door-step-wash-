@@ -64,6 +64,18 @@ export const createServiceSchema = z.object({
 
 export const updateServiceSchema = patchOf(createServiceSchema);
 
+export const createAddonSchema = z.object({
+  name: z.string().trim().min(2).max(60),
+  description: trimmed(200).default(""),
+  price: z.number().int().min(1).max(100_000),
+  durationMin: z.number().int().min(0).max(240).default(0),
+  vehicleTypes: z.array(vehicleType).max(5).default([]),
+  sortOrder: z.number().int().min(0).max(1000).default(0),
+  isActive: z.boolean().default(true),
+});
+
+export const updateAddonSchema = patchOf(createAddonSchema);
+
 export const setPricesSchema = z.object({
   cityId: uuid,
   prices: z

@@ -37,6 +37,23 @@ export interface Coverage {
   area?: { id: string; name: string; extraCharge: number };
 }
 
+/** Optional extra a customer can add to a one-time booking. */
+export interface CatalogAddon {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  durationMin: number;
+  /** Empty means every vehicle type. */
+  vehicleTypes: VehicleType[];
+}
+
+export interface BookingAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CatalogService {
   id: string;
   slug: string;
@@ -64,6 +81,8 @@ export interface Slot {
 export interface Quote {
   basePrice: number;
   areaCharge: number;
+  addons?: BookingAddon[];
+  addonsTotal?: number;
   subtotal: number;
   discount: number;
   total: number;
@@ -92,7 +111,8 @@ export interface Booking {
     carAccess: string;
   };
   contact: { name: string; phone: string | null };
-  price: { base: number; areaCharge: number; discount: number; total: number };
+  price: { base: number; areaCharge: number; addonsTotal?: number; discount: number; total: number };
+  addons?: BookingAddon[];
   worker: { name: string; rating: number; phone: string | null } | null;
   cancelledReason: string | null;
   createdAt: string;

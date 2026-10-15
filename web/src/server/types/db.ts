@@ -154,6 +154,27 @@ export interface ServiceRow {
   is_active: boolean;
 }
 
+export interface AddonRow {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  duration_min: number;
+  /** Empty means every vehicle type. */
+  vehicle_types: VehicleType[];
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Add-on as saved on a booking, so later price edits do not change it. */
+export interface BookingAddon {
+  id: string;
+  name: string;
+  price: number;
+}
+
 export interface CityServiceRow {
   city_id: string;
   service_id: string;
@@ -253,6 +274,8 @@ export interface BookingRow {
   subscription_id: string | null;
   arrived_at?: string | null;
   applied_offers?: { offer_id: string; discount: number }[];
+  addons?: BookingAddon[];
+  addons_total?: number;
   status: BookingStatus;
   status_changed_by: string | null;
   slot_date: string;

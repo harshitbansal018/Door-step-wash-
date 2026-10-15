@@ -1,6 +1,7 @@
 import "server-only";
 import { withPublic } from "../middlewares/auth.middleware";
 import { created, ok } from "../lib/response";
+import { addonService } from "../services/addon.service";
 import { catalogService } from "../services/catalog.service";
 import { coverageService } from "../services/coverage.service";
 import { planService } from "../services/plan.service";
@@ -13,6 +14,7 @@ export const publicController = {
   coverage: withPublic(async (req) => ok(await coverageService.check(readQuery(req, coverageQuery).pincode))),
 
   catalog: withPublic(async (req) => ok(await catalogService.forArea(readQuery(req, catalogQuery).areaId))),
+  addons: withPublic(async () => ok(await addonService.listPublic())),
   startingPrices: withPublic(async () => ok(await catalogService.startingPrices())),
 
   plans: withPublic(async (req) => ok(await planService.list(readQuery(req, plansQuery).areaId))),

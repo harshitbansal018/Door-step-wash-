@@ -2,7 +2,8 @@ import "server-only";
 import { unprocessable } from "../lib/errors";
 import type { Db } from "../lib/supabase";
 import { serviceModel } from "../models/service.model";
-import type { VehicleType } from "../types/db";
+import type { BookingAddon, VehicleType } from "../types/db";
+import { addonService } from "./addon.service";
 import { describeOffer, offerService } from "./offer.service";
 
 export interface QuoteOffer {
@@ -16,6 +17,9 @@ export interface QuoteOffer {
 export interface Quote {
   basePrice: number;
   areaCharge: number;
+  /** Extras chosen at checkout, priced on their own. */
+  addons: BookingAddon[];
+  addonsTotal: number;
   subtotal: number;
   discount: number;
   total: number;
@@ -43,17 +47,20 @@ export const pricingService = {
       /** Known once a slot is picked; time-window offers need it. */
       slot?: { date: string; start: string };
       offerCode?: string;
+      addonIds?: string[];
     },
   ): Promise<Quote> {
-    const [service, price] = await Promise.all([
+    const [service, price, extras] = await Promise.all([
       serviceModel.findById(db, input.serviceId),
       serviceModel.findPrice(db, input.cityId, input.serviceId, input.vehicleType),
+      addonService.resolve(db, input.addonIds ?? [], input.vehicleType),
     ]);
     if (!service?.is_active || !price?.is_active) {
       throw unprocessable("This package isn't available for your vehicle in this city.", "SERVICE_UNAVAILABLE");
     }
 
-    const subtotal = price.price + input.areaCharge;
+    // Offers apply to the whole order, add-ons included.
+    const subtotal = price.price + input.areaCharge + extras.total;
     const { applied, discount } = await offerService.resolve(
       db,
       {
@@ -88,6 +95,8 @@ export const pricingService = {
     return {
       basePrice: price.price,
       areaCharge: input.areaCharge,
+      addons: extras.addons,
+      addonsTotal: extras.total,
       subtotal,
       discount,
       total: subtotal - discount,

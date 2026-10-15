@@ -2,9 +2,9 @@
 
 import Script from "next/script";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Bike, Car, CarFront, Check, CheckCircle2, Loader2, MapPin, Tag, Truck } from "lucide-react";
+import { ArrowRight, Bike, Car, CarFront, Check, CheckCircle2, Loader2, MapPin, Plus, Tag, Truck } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
-import { type CatalogService, type Coverage, type Quote, type Slot, VEHICLES, type VehicleType } from "@/lib/domain";
+import { type CatalogAddon, type CatalogService, type Coverage, type Quote, type Slot, VEHICLES, type VehicleType } from "@/lib/domain";
 import { CheckoutDismissed, openCheckout, type Checkout } from "@/lib/razorpay-client";
 import { cn, formatMoney } from "@/lib/utils";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
@@ -59,6 +59,8 @@ export function BookingWizard({
   const [services, setServices] = useState<CatalogService[]>([]);
   const [vehicle, setVehicle] = useState<VehicleType>(initialVehicle ?? "hatchback");
   const [serviceId, setServiceId] = useState(initialService ?? "");
+  const [addons, setAddons] = useState<CatalogAddon[]>([]);
+  const [addonIds, setAddonIds] = useState<string[]>([]);
   const [date, setDate] = useState(days[0].iso);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotId, setSlotId] = useState("");
@@ -81,6 +83,26 @@ export function BookingWizard({
   const service = services.find((item) => item.id === serviceId);
   const selectedSlot = slots.find((item) => item.id === slotId);
   const served = coverage?.status === "served" && coverage.area ? coverage : null;
+  const vehicleAddons = addons.filter((item) => !item.vehicleTypes.length || item.vehicleTypes.includes(vehicle));
+  const chosenAddons = vehicleAddons.filter((item) => addonIds.includes(item.id));
+  const addonsTotal = chosenAddons.reduce((sum, item) => sum + item.price, 0);
+  // Only add-ons that fit the current vehicle are sent.
+  const selectedAddonIds = chosenAddons.map((item) => item.id);
+
+  useEffect(() => {
+    let live = true;
+    api<CatalogAddon[]>("/api/addons")
+      .then((data) => live && setAddons(data))
+      .catch(() => live && setAddons([]));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  function toggleAddon(id: string) {
+    setAddonIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+    setQuote(null);
+  }
 
   useEffect(() => {
     if (pincode.length !== 6) {
@@ -130,11 +152,12 @@ export function BookingWizard({
   useEffect(() => {
     if (step !== 3 || !service || !served || coupon) return;
     let live = true;
-    api<Quote>("/api/offers/validate", { method: "POST", body: { pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined } })
+    api<Quote>("/api/offers/validate", { method: "POST", body: { pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined, addonIds: selectedAddonIds } })
       .then((data) => live && setQuote(data))
       .catch(() => live && setQuote(null));
     return () => { live = false; };
-  }, [step, service, served, coupon, pincode, vehicle, slotId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedAddonIds is derived from addonIds
+  }, [step, service, served, coupon, pincode, vehicle, slotId, addonIds.join(",")]);
 
   async function applyCoupon() {
     if (!service || !coupon) return;
@@ -143,7 +166,7 @@ export function BookingWizard({
     try {
       const data = await api<Quote>("/api/offers/validate", {
         method: "POST",
-        body: { code: coupon, pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined },
+        body: { code: coupon, pincode, serviceId: service.id, vehicleType: vehicle, slotId: slotId || undefined, addonIds: selectedAddonIds },
       });
       setQuote(data);
       toast.success("Coupon applied", `${coupon} was added to your order.`);
@@ -178,6 +201,7 @@ export function BookingWizard({
           contactName: name,
           contactPhone: phone,
           notes: notes || undefined,
+          addonIds: selectedAddonIds,
           offerCode: coupon && quote?.offers?.some((o) => o.code === coupon) ? coupon : undefined,
         },
       });
@@ -378,6 +402,39 @@ export function BookingWizard({
                 })}
               </div>
             </section>
+            {vehicleAddons.length > 0 && (
+              <section>
+                <h2 className="font-semibold">Add extras <span className="font-normal text-slate-500">(optional)</span></h2>
+                <p className="mt-1 text-sm text-slate-500">Done during the same visit.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {vehicleAddons.map((item) => {
+                    const selected = addonIds.includes(item.id);
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        aria-pressed={selected}
+                        onClick={() => toggleAddon(item.id)}
+                        className={cn(
+                          "flex items-start gap-3 rounded-xl p-4 text-left ring-1 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md active:scale-[.99]",
+                          selected ? "bg-brand-50 ring-2 ring-brand-600 shadow-sm shadow-brand-600/10" : "ring-slate-200 hover:ring-slate-300",
+                        )}
+                      >
+                        <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-all duration-300", selected ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 bg-white text-slate-400")}>
+                          {selected ? <Check className="check-pop size-3" /> : <Plus className="size-3" />}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold">{item.name}</span>
+                          {item.description && <span className="block text-sm text-slate-500">{item.description}</span>}
+                        </span>
+                        <strong className="shrink-0 tabular-nums">+{formatMoney(item.price)}</strong>
+                      </button>
+                    );
+                  })}
+                </div>
+                {addonsTotal > 0 && <p className="step-enter mt-3 text-sm font-medium text-brand-700">Extras: +{formatMoney(addonsTotal)}</p>}
+              </section>
+            )}
           </div>
         )}
 
@@ -448,9 +505,16 @@ export function BookingWizard({
                 <div className="flex justify-between">
                   <span>{service.name} · {selectedSlot?.start}–{selectedSlot?.end}</span>
                   <strong key={quote?.total ?? "base"} className="step-enter tabular-nums">
-                    {formatMoney(quote?.total ?? (service.prices[vehicle] ?? 0) + (served?.area?.extraCharge ?? 0))}
+                    {formatMoney(quote?.total ?? (service.prices[vehicle] ?? 0) + (served?.area?.extraCharge ?? 0) + addonsTotal)}
                   </strong>
                 </div>
+                {chosenAddons.length > 0 && (
+                  <div className="mt-2 space-y-1 border-t border-slate-200 pt-2 text-slate-600">
+                    {chosenAddons.map((item) => (
+                      <p key={item.id} className="flex justify-between gap-3"><span className="flex items-center gap-1.5"><Plus className="size-3.5" />{item.name}</span><span className="tabular-nums">{formatMoney(item.price)}</span></p>
+                    ))}
+                  </div>
+                )}
                 {quote?.discount ? (
                   <div className="step-enter mt-2 space-y-1 border-t border-slate-200 pt-2">
                     <p className="flex justify-between text-slate-500"><span>Price</span><span className="tabular-nums line-through">{formatMoney(quote.subtotal)}</span></p>
