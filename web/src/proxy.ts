@@ -1,9 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { clearAuthCookiesAtScopes, createServerClient, type SetAllCookies } from "@supabase/ssr";
 import { AUTH_PAGES, HOME_FOR_ROLE, PROTECTED_ROUTES, type Role } from "@/lib/roles";
 import { isSupabaseConfigured, SUPABASE_ANON_KEY, SUPABASE_URL } from "@/lib/supabase/config";
 
 const matches = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(`${prefix}/`);
+const TERMINAL_REFRESH_ERRORS = new Set(["refresh_token_not_found", "refresh_token_already_used", "session_expired"]);
+
+function authStorageKey() {
+  return `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+}
 
 /**
  * Runs before every page: refreshes the Supabase session cookie and keeps
@@ -22,20 +27,33 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
+  const getAllCookies = () => request.cookies.getAll();
+  const setAllCookies: SetAllCookies = (toSet, headers = {}) => {
+    toSet.forEach(({ name, value }) => request.cookies.set(name, value));
+    response = NextResponse.next({ request });
+    toSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+    Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
+  };
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
-      getAll: () => request.cookies.getAll(),
-      setAll: (toSet, headers) => {
-        toSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        toSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
-      },
+      getAll: getAllCookies,
+      setAll: setAllCookies,
     },
   });
 
   // Validates the JWT (and refreshes it if needed). Do not trust getSession() here.
-  const { data } = await supabase.auth.getClaims();
+  const { data, error } = await supabase.auth.getClaims();
+  if (error?.code && TERMINAL_REFRESH_ERRORS.has(error.code)) {
+    // A revoked/expired refresh token can otherwise be retried by every
+    // parallel request while its access token is still inside the refresh
+    // margin. Expire every chunk now and consistently treat it as signed out.
+    await clearAuthCookiesAtScopes({
+      getAll: getAllCookies,
+      setAll: setAllCookies,
+      storageKey: authStorageKey(),
+      scopes: [{ path: "/" }],
+    });
+  }
   const claims = data?.claims;
 
   let role: Role | null = null;

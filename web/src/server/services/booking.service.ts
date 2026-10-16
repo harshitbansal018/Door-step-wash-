@@ -210,22 +210,45 @@ export const bookingService = {
     }
   },
 
-  async listMine(auth: AuthContext, q: { scope: "upcoming" | "past" | "all"; search?: string; kind?: "plan" | "single"; page: number; pageSize: number }) {
+  async listMine(auth: AuthContext, q: {
+    scope: "upcoming" | "past" | "all";
+    status?: BookingStatus;
+    date?: string;
+    serviceId?: string;
+    vehicleType?: CreateBookingInput["vehicleType"];
+    search?: string;
+    kind?: "plan" | "single";
+    page: number;
+    pageSize: number;
+  }) {
     const from = (q.page - 1) * q.pageSize;
-    const { rows, total } = await bookingModel.list(auth.db, {
-      customerId: auth.userId,
-      status: q.scope === "upcoming" ? UPCOMING : q.scope === "past" ? PAST : undefined,
-      search: q.search,
-      kind: q.kind,
-      ascending: q.scope === "upcoming",
-      from,
-      to: from + q.pageSize - 1,
-    });
+    const scopeStatuses = q.scope === "upcoming" ? UPCOMING : q.scope === "past" ? PAST : undefined;
+    const statuses = q.status
+      ? (!scopeStatuses || scopeStatuses.includes(q.status) ? [q.status] : [])
+      : scopeStatuses;
+    const [list, filterOptions] = await Promise.all([
+      statuses?.length === 0
+        ? Promise.resolve({ rows: [] as BookingDetail[], total: 0 })
+        : bookingModel.list(auth.db, {
+            customerId: auth.userId,
+            status: statuses,
+            date: q.date,
+            serviceId: q.serviceId,
+            vehicleType: q.vehicleType,
+            search: q.search,
+            kind: q.kind,
+            ascending: q.scope === "upcoming",
+            from,
+            to: from + q.pageSize - 1,
+          }),
+      bookingModel.customerFilterOptions(auth.db, auth.userId),
+    ]);
     return {
-      items: rows.map((b) => presentBooking(b, { showWorkerPhone: ["accepted", "on_the_way", "in_progress"].includes(b.status) })),
+      items: list.rows.map((b) => presentBooking(b, { showWorkerPhone: ["accepted", "on_the_way", "in_progress"].includes(b.status) })),
       page: q.page,
       pageSize: q.pageSize,
-      total,
+      total: list.total,
+      filterOptions,
     };
   },
 

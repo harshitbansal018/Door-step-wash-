@@ -1,30 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, Eye, Loader2, MapPin, Star, XCircle } from "lucide-react";
-import { FilterBar, SearchBox, useDebounced } from "@/components/filters";
+import { CalendarDays, Eye, Loader2, MapPin, SlidersHorizontal, Star, XCircle } from "lucide-react";
+import { SearchBox, useDebounced } from "@/components/filters";
 import { Pagination } from "@/components/pagination";
 import { ApiError, api } from "@/lib/api";
-import type { Booking, BookingDetails, Slot } from "@/lib/domain";
+import { STATUS_META, VEHICLES, type Booking, type BookingDetails, type BookingStatus, type Slot, type VehicleType } from "@/lib/domain";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { CustomerBookingDetails } from "@/components/site/booking-details";
 import { EmptyState, ErrorState, LoadingState } from "@/components/data-state";
 import { toast } from "@/components/popups";
 import { Badge, Button, Card, Input, Label, Modal, PageHeader, Select, StatusBadge } from "@/components/ui";
 
-type BookingList = { items: Booking[]; page: number; pageSize: number; total: number };
+type BookingList = {
+  items: Booking[];
+  page: number;
+  pageSize: number;
+  total: number;
+  filterOptions: { services: { id: string; name: string }[]; vehicles: VehicleType[] };
+};
 type Action = { kind: "cancel" | "review" | "reschedule"; booking: Booking } | null;
+
+const BOOKING_STATUSES = Object.keys(STATUS_META) as BookingStatus[];
 
 export default function BookingsPage() {
   const [scope, setScope] = useState<"upcoming" | "past" | "all">("all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<"" | "single" | "plan">("");
+  const [status, setStatus] = useState<BookingStatus | "">("");
+  const [filterDate, setFilterDate] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [vehicleType, setVehicleType] = useState<VehicleType | "">("");
   const q = useDebounced(search.trim());
-  const filterKey = `${scope}|${q}|${kind}`;
+  const filterKey = `${scope}|${q}|${kind}|${status}|${filterDate}|${serviceId}|${vehicleType}`;
   const [lastScope, setLastScope] = useState(filterKey);
   if (lastScope !== filterKey) { setLastScope(filterKey); setPage(1); }
-  const filtering = !!(q || kind);
+  const filtering = !!(scope !== "all" || q || kind || status || filterDate || serviceId || vehicleType);
   const [data, setData] = useState<BookingList | null>(null);
   const [error, setError] = useState(""); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false);
   const [action, setAction] = useState<Action>(null); const [reason, setReason] = useState(""); const [rating, setRating] = useState("5"); const [comment, setComment] = useState("");
@@ -33,14 +45,23 @@ export default function BookingsPage() {
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
-    try { setData(await api<BookingList>(`/api/bookings?${new URLSearchParams({ scope, page: String(page), pageSize: "10", ...(q ? { search: q } : {}), ...(kind ? { kind } : {}) })}`)); }
+    const params = new URLSearchParams({ scope, page: String(page), pageSize: "10" });
+    if (status) params.set("status", status);
+    if (filterDate) params.set("date", filterDate);
+    if (serviceId) params.set("serviceId", serviceId);
+    if (vehicleType) params.set("vehicleType", vehicleType);
+    if (q) params.set("search", q);
+    if (kind) params.set("kind", kind);
+    try { setData(await api<BookingList>(`/api/bookings?${params}`)); }
     catch (caught) { setError(caught instanceof Error ? caught.message : "Could not load bookings."); }
     finally { setLoading(false); }
-  }, [scope, page, q, kind]);
+  }, [filterDate, kind, page, q, scope, serviceId, status, vehicleType]);
+
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
   useEffect(() => {
     if (action?.kind !== "reschedule") return;
     const timer = window.setTimeout(() => {
@@ -70,11 +91,40 @@ export default function BookingsPage() {
   }
   const closeDetails = () => { setViewing(null); setDetail(null); };
 
+  const activeFilterCount = [scope !== "all", status, filterDate, serviceId, vehicleType, q, kind].filter(Boolean).length;
+  const hasBookings = Boolean(data?.filterOptions.services.length || data?.filterOptions.vehicles.length);
+
+  function clearFilters() {
+    setScope("all");
+    setStatus("");
+    setFilterDate("");
+    setServiceId("");
+    setVehicleType("");
+    setSearch("");
+    setKind("");
+  }
+
   return <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
     <PageHeader title="My bookings" description="Live status, service details and booking management." action={<div className="flex flex-wrap gap-2"><Button href="/dashboard" variant="ghost">Dashboard</Button><Button href="/plan" variant="secondary">My plan</Button><Button href="/book">Book another wash</Button></div>} />
-    <div className="mb-5 flex gap-2">{(["all", "upcoming", "past"] as const).map((item) => <Button key={item} size="sm" variant={scope === item ? "dark" : "secondary"} onClick={() => setScope(item)}>{item[0].toUpperCase() + item.slice(1)}</Button>)}</div><FilterBar className="mb-5"><SearchBox value={search} onChange={setSearch} label="Search bookings" placeholder="Booking code or car plate" className="sm:max-w-sm" /><Select aria-label="Booking type" className="sm:w-44" value={kind} onChange={(event) => setKind(event.target.value as "" | "single" | "plan")}><option value="">All bookings</option><option value="single">One-off washes</option><option value="plan">Plan visits</option></Select></FilterBar>
+    <Card className="mb-5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">{(["all", "upcoming", "past"] as const).map((item) => <Button key={item} size="sm" variant={scope === item ? "dark" : "secondary"} onClick={() => { setScope(item); setStatus(""); }}>{item[0].toUpperCase() + item.slice(1)}</Button>)}</div>
+        <div className="flex items-center gap-2 text-sm text-slate-500"><SlidersHorizontal className="size-4" /><span>{activeFilterCount ? `${activeFilterCount} active` : "Filter bookings"}</span>{activeFilterCount > 0 && <Button size="sm" variant="ghost" onClick={clearFilters}>Clear all</Button>}</div>
+      </div>
+      <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <Label htmlFor="booking-search">Search</Label>
+          <SearchBox value={search} onChange={setSearch} label="Search bookings" placeholder="Booking ID or vehicle number" />
+        </div>
+        <div><Label htmlFor="booking-status">Status</Label><Select id="booking-status" value={status} onChange={(event) => setStatus(event.target.value as BookingStatus | "")}><option value="">All statuses</option>{BOOKING_STATUSES.map((item) => <option key={item} value={item}>{STATUS_META[item].label}</option>)}</Select></div>
+        <div><Label htmlFor="booking-date">Service date</Label><Input id="booking-date" type="date" value={filterDate} onChange={(event) => setFilterDate(event.target.value)} /></div>
+        <div><Label htmlFor="booking-service">Service</Label><Select id="booking-service" value={serviceId} onChange={(event) => setServiceId(event.target.value)}><option value="">All services</option>{data?.filterOptions.services.map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}</Select></div>
+        <div><Label htmlFor="booking-vehicle">Vehicle type</Label><Select id="booking-vehicle" value={vehicleType} onChange={(event) => setVehicleType(event.target.value as VehicleType | "")}><option value="">All vehicles</option>{VEHICLES.filter((vehicle) => !data || data.filterOptions.vehicles.includes(vehicle.id)).map((vehicle) => <option key={vehicle.id} value={vehicle.id}>{vehicle.label}</option>)}</Select></div>
+        <div><Label htmlFor="booking-kind">Booking type</Label><Select id="booking-kind" value={kind} onChange={(event) => setKind(event.target.value as "" | "single" | "plan")}><option value="">All bookings</option><option value="single">One-off washes</option><option value="plan">Plan visits</option></Select></div>
+      </div>
+    </Card>
     {error && <div role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-    {loading ? <LoadingState label="Loading your bookings…" /> : !data?.items.length ? <EmptyState title={filtering ? "No matching bookings" : "No bookings yet"} description={filtering ? "Try a different search or show all bookings." : "Your confirmed and completed washes will appear here."} /> : <div key={scope} className="space-y-4">{data.items.map((booking, index) => <Card key={booking.id} hover className="step-enter p-5" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
+    {loading ? <LoadingState label="Loading your bookings…" /> : !data?.items.length ? <EmptyState title={filtering || hasBookings ? "No matching bookings" : "No bookings yet"} description={filtering || hasBookings ? "Try changing or clearing your filters." : "Your confirmed and completed washes will appear here."} /> : <div key={filterKey} className="space-y-4">{data.items.map((booking, index) => <Card key={booking.id} hover className="step-enter p-5" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
         <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-slate-900">{booking.code} · {booking.service.name}</h2><StatusBadge status={booking.status} />{booking.subscriptionId && <Badge tone="violet">Plan</Badge>}</div><p className="mt-2 flex items-center gap-2 text-sm text-slate-600"><CalendarDays className="size-4 shrink-0" />{formatDate(booking.slot.date)}, {booking.slot.start}–{booking.slot.end}</p><p className="mt-1 flex items-center gap-2 text-sm text-slate-600"><MapPin className="size-4 shrink-0" /><span className="truncate">{booking.address.line}, {booking.area}, {booking.city}</span></p><p className="mt-1 text-sm text-slate-500">{booking.vehicle.makeModel} · {booking.vehicle.plate}</p>{booking.worker && <p className="mt-2 text-sm">Worker: <strong>{booking.worker.name}</strong>{booking.worker.phone ? ` · ${booking.worker.phone}` : ""}</p>}{booking.cancelledReason && <p className="mt-2 text-sm text-red-600">{booking.cancelledReason}</p>}</div>
         <div className="shrink-0 text-left sm:text-right"><p className="text-lg font-bold">{booking.subscriptionId ? "Prepaid" : formatMoney(booking.price.total)}</p><div className="mt-3 flex flex-wrap gap-2 sm:justify-end"><Button size="sm" variant="ghost" onClick={() => openDetails(booking)}><Eye className="size-4" />Details</Button>{["confirmed", "assigned", "accepted"].includes(booking.status) && <Button size="sm" variant="secondary" onClick={() => setAction({ kind: "reschedule", booking })}>Reschedule</Button>}{["pending_payment", "confirmed", "assigned", "accepted"].includes(booking.status) && <Button size="sm" variant="danger" onClick={() => setAction({ kind: "cancel", booking })}><XCircle className="size-4" />Cancel</Button>}{booking.status === "completed" && <Button size="sm" variant="secondary" onClick={() => setAction({ kind: "review", booking })}><Star className="size-4" />Rate</Button>}</div></div>

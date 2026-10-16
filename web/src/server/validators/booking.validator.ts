@@ -1,6 +1,18 @@
 import "server-only";
 import { z } from "zod";
-import { isoDate, pagination, search, phone, pincode, trimmed, uuid, vehicleType } from "./common";
+import { isoDate, pagination, phone, pincode, search, trimmed, uuid, vehicleType } from "./common";
+
+const bookingStatus = z.enum([
+  "pending_payment",
+  "confirmed",
+  "assigned",
+  "accepted",
+  "on_the_way",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "expired",
+]);
 
 const offerCode = z
   .string()
@@ -64,6 +76,10 @@ export const reviewSchema = z.object({
 
 export const myBookingsQuery = pagination.extend({
   scope: z.enum(["upcoming", "past", "all"]).default("all"),
+  status: bookingStatus.optional(),
+  date: isoDate.optional(),
+  serviceId: uuid.optional(),
+  vehicleType: vehicleType.optional(),
   search,
   kind: z.enum(["plan", "single"]).optional(),
 });

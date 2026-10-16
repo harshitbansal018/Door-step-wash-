@@ -24,6 +24,8 @@ export interface BookingListFilter {
   customerId?: string;
   workerId?: string;
   date?: string;
+  serviceId?: string;
+  vehicleType?: string;
   search?: string;
   ids?: string[];
   /** Only bookings created by a monthly plan, or only one-off bookings. */
@@ -68,12 +70,34 @@ export const bookingModel = {
     if (f.dateTo) q = q.lte("slot_date", f.dateTo);
     if (f.kind === "plan") q = q.not("subscription_id", "is", null);
     if (f.kind === "single") q = q.is("subscription_id", null);
+    if (f.serviceId) q = q.eq("service_id", f.serviceId);
+    if (f.vehicleType) q = q.eq("vehicle_type", f.vehicleType);
     if (f.search) {
       q = q.or(`code.ilike.%${f.search}%,contact_name.ilike.%${f.search}%,vehicle_plate.ilike.%${f.search}%,contact_phone.ilike.%${f.search}%`);
     }
     const { data, count, error } = await q.range(f.from, f.to);
     if (error) throw error;
     return { rows: (data ?? []) as unknown as BookingDetail[], total: count ?? 0 };
+  },
+
+  async customerFilterOptions(db: Db, customerId: string) {
+    const { data, error } = await db
+      .from("bookings")
+      .select("service_id, vehicle_type, service:services!inner(name)")
+      .eq("customer_id", customerId);
+    if (error) throw error;
+
+    const services = new Map<string, string>();
+    const vehicles = new Set<string>();
+    for (const row of data ?? []) {
+      const service = Array.isArray(row.service) ? row.service[0] : row.service;
+      if (service?.name) services.set(row.service_id, service.name);
+      if (row.vehicle_type) vehicles.add(row.vehicle_type);
+    }
+    return {
+      services: [...services].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+      vehicles: [...vehicles].sort(),
+    };
   },
 
   /**
